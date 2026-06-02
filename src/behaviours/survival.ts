@@ -1,6 +1,6 @@
 import { Vec2, vec, sub, add, normalize, scale, distance } from "../utils/vec2";
 import type { Creature } from "../entities/creature";
-import type { Entity } from "../entities/entity";
+import type { Entity, World } from "../entities/entity";
 import { Food } from "../entities/food";
 
 // How close a dangerous creature must be before we flee it.
@@ -21,6 +21,7 @@ export function isHungry(creature: Creature): boolean {
 export function seekFoodIfHungry(
   creature: Creature,
   nearby: Entity[],
+  world: World,
 ): Vec2 | null {
   if (!isHungry(creature)) return null;
 
@@ -38,8 +39,7 @@ export function seekFoodIfHungry(
   if (!nearestFood) return null;
 
   creature.lastActivity = "Hungry, seeking food";
-  const dir = sub(nearestFood.position, creature.position);
-  return scale(normalize(dir), creature.maxSpeed);
+  return creature.nav.seek(creature, nearestFood.position, world);
 }
 
 /**
@@ -51,6 +51,7 @@ export function seekFoodIfHungry(
 export function survivalDrive(
   creature: Creature,
   nearby: Entity[],
+  world: World,
 ): Vec2 | null {
   // 1. Flee from anything that can hurt us (predators / aggressors deal collision damage).
   let fleeForce = vec(0, 0);
@@ -70,9 +71,9 @@ export function survivalDrive(
   }
   if (threats > 0) {
     creature.lastActivity = `Fleeing (${threats} nearby)`;
-    return scale(normalize(fleeForce), creature.maxSpeed);
+    return creature.nav.flee(creature, fleeForce, world);
   }
 
   // 2. If we're running low on energy, prioritise finding food over sightseeing.
-  return seekFoodIfHungry(creature, nearby);
+  return seekFoodIfHungry(creature, nearby, world);
 }

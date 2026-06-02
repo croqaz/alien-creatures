@@ -9,7 +9,7 @@ export class ShyBehaviour implements Behaviour {
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly fearRadius = 150;
 
-  decide(creature: Creature, nearby: Entity[], _world: World): Vec2 {
+  decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
     // Flee from nearby creatures
     let fleeForce = vec(0, 0);
     let threats = 0;
@@ -28,11 +28,11 @@ export class ShyBehaviour implements Behaviour {
 
     if (threats > 0) {
       creature.lastActivity = `Fleeing (${threats} nearby)`;
-      return scale(normalize(fleeForce), creature.maxSpeed);
+      return creature.nav.flee(creature, fleeForce, world);
     }
 
     // No immediate danger: feed if hungry before idling.
-    const food = seekFoodIfHungry(creature, nearby);
+    const food = seekFoodIfHungry(creature, nearby, world);
     if (food) return food;
 
     // Wander gently

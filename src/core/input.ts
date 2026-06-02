@@ -5,6 +5,7 @@ export type ClickHandler = (worldPos: Vec2) => void;
 
 export class Input {
   private isPanning = false;
+  private isPainting = false;
   private lastMouse: Vec2 = vec(0, 0);
   mouse: Vec2 = vec(0, 0);
   onClick: ClickHandler | null = null;
@@ -29,10 +30,10 @@ export class Input {
       this.canvas.classList.add("panning");
       return;
     }
-    // Left click → delegate to handler
+    // Left button → delegate to handler; hold-and-drag keeps firing (paint).
     if (e.button === 0 && this.onClick) {
-      const worldPos = this.camera.screenToWorld(vec(e.clientX, e.clientY));
-      this.onClick(worldPos);
+      this.isPainting = true;
+      this.onClick(this.camera.screenToWorld(vec(e.clientX, e.clientY)));
     }
   };
 
@@ -43,11 +44,14 @@ export class Input {
       const dy = e.clientY - this.lastMouse.y;
       this.camera.pan(dx, dy);
       this.lastMouse = vec(e.clientX, e.clientY);
+    } else if (this.isPainting && this.onClick) {
+      this.onClick(this.camera.screenToWorld(vec(e.clientX, e.clientY)));
     }
   };
 
   private onMouseUp = (_e: MouseEvent) => {
     this.isPanning = false;
+    this.isPainting = false;
     this.canvas.classList.remove("panning");
   };
 

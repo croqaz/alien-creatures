@@ -3,6 +3,7 @@ import { Arena } from "../core/arena";
 import { Entity } from "../entities/entity";
 import { Creature } from "../entities/creature";
 import { Food } from "../entities/food";
+import { Wall } from "../entities/wall";
 import { drawCreature } from "./creature-renderer";
 import { drawFood } from "./food-renderer";
 
@@ -14,7 +15,7 @@ export class Renderer {
     private arena: Arena,
   ) {}
 
-  render(entities: Entity[], time: number) {
+  render(entities: Entity[], walls: Wall[], time: number) {
     const { ctx, canvas, camera } = this;
 
     // Resize canvas to viewport
@@ -36,6 +37,17 @@ export class Renderer {
 
     // Draw arena
     this.arena.draw(ctx);
+
+    // Draw walls (beneath food and creatures)
+    for (const w of walls) {
+      const x = w.position.x - w.size / 2;
+      const y = w.position.y - w.size / 2;
+      ctx.fillStyle = "#3a3a52";
+      ctx.fillRect(x, y, w.size, w.size);
+      ctx.strokeStyle = "#5a5a7a";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, w.size - 2, w.size - 2);
+    }
 
     // Sort: food first, then creatures (so creatures draw on top)
     const foods: Food[] = [];

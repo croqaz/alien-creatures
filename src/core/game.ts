@@ -5,6 +5,7 @@ import { Renderer } from "../rendering/renderer";
 import { SpatialGrid } from "../utils/spatial-grid";
 import { Entity, World } from "../entities/entity";
 import { Creature } from "../entities/creature";
+import { WallGrid } from "../entities/wall";
 import { Vec2 } from "../utils/vec2";
 
 export class Game implements World {
@@ -12,6 +13,7 @@ export class Game implements World {
   arena: Arena;
   input: Input;
   entities: Entity[] = [];
+  walls = new WallGrid();
   simSpeed = 1;
   time = 0;
 
@@ -91,7 +93,7 @@ export class Game implements World {
     });
 
     // Render
-    this.renderer.render(this.entities, this.time);
+    this.renderer.render(this.entities, this.walls.all(), this.time);
 
     // Stats update every 0.5s
     this.statsTimer += dt;

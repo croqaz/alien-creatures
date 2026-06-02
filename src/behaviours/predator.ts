@@ -1,4 +1,4 @@
-import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import { Vec2, vec, distance } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
@@ -10,9 +10,9 @@ export class PredatorBehaviour implements Behaviour {
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly huntRadius = 300;
 
-  decide(creature: Creature, nearby: Entity[], _world: World): Vec2 {
+  decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
     // When hungry, head straight for the nearest food before hunting.
-    const food = seekFoodIfHungry(creature, nearby);
+    const food = seekFoodIfHungry(creature, nearby, world);
     if (food) return food;
 
     // Hunt creatures smaller than self, or eat food
@@ -43,8 +43,7 @@ export class PredatorBehaviour implements Behaviour {
         target instanceof Food
           ? "Moving towards food"
           : `Hunting ${(target as Creature).species}`;
-      const dir = sub(target.position, creature.position);
-      return scale(normalize(dir), creature.maxSpeed);
+      return creature.nav.seek(creature, target.position, world);
     }
 
     // Prowl

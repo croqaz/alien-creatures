@@ -1,4 +1,4 @@
-import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import { Vec2, vec, distance } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
@@ -9,9 +9,9 @@ export class GrazerBehaviour implements Behaviour {
   readonly name = "Grazer";
   private wanderAngle = Math.random() * Math.PI * 2;
 
-  decide(creature: Creature, nearby: Entity[], _world: World): Vec2 {
+  decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
     // Survival comes first: flee predators/aggressors before grazing.
-    const survival = survivalDrive(creature, nearby);
+    const survival = survivalDrive(creature, nearby, world);
     if (survival) return survival;
 
     // Look for nearest food
@@ -29,8 +29,7 @@ export class GrazerBehaviour implements Behaviour {
 
     if (nearestFood) {
       creature.lastActivity = "Moving towards food";
-      const dir = sub(nearestFood.position, creature.position);
-      return scale(normalize(dir), creature.maxSpeed);
+      return creature.nav.seek(creature, nearestFood.position, world);
     }
 
     // Wander

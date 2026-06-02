@@ -1,4 +1,4 @@
-import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import { Vec2, vec, distance } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
@@ -9,9 +9,9 @@ export class AggressiveBehaviour implements Behaviour {
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly chaseRadius = 250;
 
-  decide(creature: Creature, nearby: Entity[], _world: World): Vec2 {
+  decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
     // When hungry, food comes before picking fights.
-    const food = seekFoodIfHungry(creature, nearby);
+    const food = seekFoodIfHungry(creature, nearby, world);
     if (food) return food;
 
     // Chase nearest creature
@@ -30,8 +30,7 @@ export class AggressiveBehaviour implements Behaviour {
 
     if (target) {
       creature.lastActivity = `Chasing ${target.species}`;
-      const dir = sub(target.position, creature.position);
-      return scale(normalize(dir), creature.maxSpeed);
+      return creature.nav.seek(creature, target.position, world);
     }
 
     // Wander aggressively

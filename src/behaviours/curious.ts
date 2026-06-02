@@ -1,4 +1,4 @@
-import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import { Vec2, vec, distance } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
@@ -9,9 +9,9 @@ export class CuriousBehaviour implements Behaviour {
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly inspectRadius = 200;
 
-  decide(creature: Creature, nearby: Entity[], _world: World): Vec2 {
+  decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
     // Survival comes first: flee threats and feed when hungry.
-    const survival = survivalDrive(creature, nearby);
+    const survival = survivalDrive(creature, nearby, world);
     if (survival) return survival;
 
     // Hungry with no food in sight? Roam to search rather than freeze inspecting
@@ -44,10 +44,14 @@ export class CuriousBehaviour implements Behaviour {
           ? (nearestEntity as Creature).species
           : "food";
       creature.lastActivity = `Inspecting ${label}`;
-      const dir = sub(nearestEntity.position, creature.position);
       // Slow down as we get closer (curiosity, not aggression)
       const closeness = Math.max(0.2, nearestDist / this.inspectRadius);
-      return scale(normalize(dir), creature.maxSpeed * closeness);
+      return creature.nav.seek(
+        creature,
+        nearestEntity.position,
+        world,
+        creature.maxSpeed * closeness,
+      );
     }
 
     // Wander

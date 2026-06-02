@@ -1,4 +1,5 @@
 import { Vec2 } from "../utils/vec2";
+import type { WallGrid } from "./wall";
 
 export interface Entity {
   id: number;
@@ -11,6 +12,7 @@ export interface Entity {
 export interface World {
   entities: Entity[];
   getNearby(position: Vec2, radius: number): Entity[];
+  walls: WallGrid;
   arenaWidth: number;
   arenaHeight: number;
   time: number;
