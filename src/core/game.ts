@@ -1,0 +1,99 @@
+import { Camera } from './camera';
+import { Arena } from './arena';
+import { Input } from './input';
+import { Renderer } from '../rendering/renderer';
+import { SpatialGrid } from '../utils/spatial-grid';
+import { Entity, World } from '../entities/entity';
+import { Creature } from '../entities/creature';
+import { Vec2 } from '../utils/vec2';
+
+export class Game implements World {
+  camera = new Camera();
+  arena: Arena;
+  input: Input;
+  entities: Entity[] = [];
+  simSpeed = 1;
+  time = 0;
+
+  private renderer: Renderer;
+  private grid: SpatialGrid;
+  private lastTime = 0;
+  private statsTimer = 0;
+  private onStatsUpdate: (() => void) | null = null;
+
+  get arenaWidth() { return this.arena.width; }
+  get arenaHeight() { return this.arena.height; }
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.arena = new Arena(4000, 3000);
+    this.input = new Input(canvas, this.camera);
+    const ctx = canvas.getContext('2d')!;
+    this.renderer = new Renderer(ctx, canvas, this.camera, this.arena);
+    this.grid = new SpatialGrid(this.arena.width, this.arena.height, 200);
+
+    // Center camera on arena
+    this.camera.centerOn(
+      { x: this.arena.width / 2, y: this.arena.height / 2 },
+      canvas.clientWidth,
+      canvas.clientHeight,
+    );
+  }
+
+  addEntity(entity: Entity) {
+    this.entities.push(entity);
+  }
+
+  getNearby(position: Vec2, radius: number): Entity[] {
+    return this.grid.getNearby(position, radius);
+  }
+
+  setStatsCallback(cb: () => void) {
+    this.onStatsUpdate = cb;
+  }
+
+  start() {
+    this.lastTime = performance.now();
+    requestAnimationFrame(this.loop);
+  }
+
+  private loop = (now: number) => {
+    requestAnimationFrame(this.loop);
+
+    let dt = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+    dt = Math.min(dt, 0.1); // cap to avoid spiral
+    dt *= this.simSpeed;
+
+    this.time += dt;
+
+    // Rebuild spatial grid
+    this.grid.clear();
+    for (const e of this.entities) {
+      if (e.isAlive) this.grid.insert(e);
+    }
+
+    // Update entities
+    for (const e of this.entities) {
+      e.update(dt, this);
+    }
+
+    // Remove long-dead entities
+    this.entities = this.entities.filter((e) => {
+      if (e.isAlive) return true;
+      if (e instanceof Creature && e.deathTime > 0) {
+        return performance.now() - e.deathTime < 1000; // keep for fade
+      }
+      return false;
+    });
+
+    // Render
+    this.renderer.render(this.entities, this.time);
+
+    // Stats update every 0.5s
+    this.statsTimer += dt;
+    if (this.statsTimer > 0.5) {
+      this.statsTimer = 0;
+      this.onStatsUpdate?.();
+    }
+  };
+}
