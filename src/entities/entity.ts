@@ -1,4 +1,4 @@
-import { Vec2 } from '../utils/vec2';
+import { Vec2 } from "../utils/vec2";
 
 export interface Entity {
   id: number;

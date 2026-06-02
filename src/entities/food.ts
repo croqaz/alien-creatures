@@ -1,5 +1,5 @@
-import { Vec2 } from '../utils/vec2';
-import { Entity, World, generateId } from './entity';
+import { Vec2 } from "../utils/vec2";
+import { Entity, World, generateId } from "./entity";
 
 export class Food implements Entity {
   id: number;
@@ -12,7 +12,7 @@ export class Food implements Entity {
   constructor(
     public position: Vec2,
     nutrition = 25,
-    color = '#6c3',
+    color = "#6c3",
   ) {
     this.id = generateId();
     this.nutrition = nutrition;

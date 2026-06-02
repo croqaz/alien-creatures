@@ -1,11 +1,11 @@
-import { Vec2, vec, sub, normalize, scale, distance } from '../utils/vec2';
-import type { Behaviour } from './behaviour';
-import type { Creature } from '../entities/creature';
-import type { Entity, World } from '../entities/entity';
-import { seekFoodIfHungry } from './survival';
+import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import type { Behaviour } from "./behaviour";
+import type { Creature } from "../entities/creature";
+import type { Entity, World } from "../entities/entity";
+import { seekFoodIfHungry } from "./survival";
 
 export class AggressiveBehaviour implements Behaviour {
-  readonly name = 'Aggressive';
+  readonly name = "Aggressive";
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly chaseRadius = 250;
 
@@ -20,7 +20,7 @@ export class AggressiveBehaviour implements Behaviour {
 
     for (const e of nearby) {
       if (e === creature || !e.isAlive) continue;
-      if (!('species' in e)) continue;
+      if (!("species" in e)) continue;
       const d = distance(creature.position, e.position);
       if (d < this.chaseRadius && d < targetDist) {
         targetDist = d;
@@ -35,7 +35,7 @@ export class AggressiveBehaviour implements Behaviour {
     }
 
     // Wander aggressively
-    creature.lastActivity = 'Prowling';
+    creature.lastActivity = "Prowling";
     this.wanderAngle += (Math.random() - 0.5) * 0.8;
     return vec(
       Math.cos(this.wanderAngle) * creature.maxSpeed * 0.6,

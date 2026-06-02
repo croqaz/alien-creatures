@@ -1,11 +1,11 @@
-import { Vec2, vec, sub, normalize, scale, add, distance } from '../utils/vec2';
-import type { Behaviour } from './behaviour';
-import type { Creature } from '../entities/creature';
-import type { Entity, World } from '../entities/entity';
-import { seekFoodIfHungry } from './survival';
+import { Vec2, vec, sub, normalize, scale, add, distance } from "../utils/vec2";
+import type { Behaviour } from "./behaviour";
+import type { Creature } from "../entities/creature";
+import type { Entity, World } from "../entities/entity";
+import { seekFoodIfHungry } from "./survival";
 
 export class ShyBehaviour implements Behaviour {
-  readonly name = 'Shy';
+  readonly name = "Shy";
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly fearRadius = 150;
 
@@ -16,7 +16,7 @@ export class ShyBehaviour implements Behaviour {
 
     for (const e of nearby) {
       if (e === creature || !e.isAlive) continue;
-      if (!('species' in e)) continue; // only flee from creatures
+      if (!("species" in e)) continue; // only flee from creatures
       const d = distance(creature.position, e.position);
       if (d < this.fearRadius && d > 0) {
         const away = normalize(sub(creature.position, e.position));
@@ -36,7 +36,7 @@ export class ShyBehaviour implements Behaviour {
     if (food) return food;
 
     // Wander gently
-    creature.lastActivity = 'Wandering';
+    creature.lastActivity = "Wandering";
     this.wanderAngle += (Math.random() - 0.5) * 0.4;
     return vec(
       Math.cos(this.wanderAngle) * creature.maxSpeed * 0.4,

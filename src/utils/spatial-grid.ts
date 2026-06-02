@@ -1,5 +1,5 @@
-import { Vec2 } from '../utils/vec2';
-import type { Entity } from '../entities/entity';
+import { Vec2 } from "../utils/vec2";
+import type { Entity } from "../entities/entity";
 
 export class SpatialGrid {
   private cellSize: number;
@@ -54,7 +54,8 @@ export class SpatialGrid {
   }
 
   private index(cx: number, cy: number): number | undefined {
-    if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows) return undefined;
+    if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows)
+      return undefined;
     return cy * this.cols + cx;
   }
 }

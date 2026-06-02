@@ -1,4 +1,4 @@
-import { Vec2, vec, sub, add } from '../utils/vec2';
+import { Vec2, vec, sub, add } from "../utils/vec2";
 
 export class Camera {
   offset: Vec2 = vec(0, 0);
@@ -22,7 +22,14 @@ export class Camera {
   }
 
   applyTransform(ctx: CanvasRenderingContext2D) {
-    ctx.setTransform(this.zoom, 0, 0, this.zoom, this.offset.x * this.zoom, this.offset.y * this.zoom);
+    ctx.setTransform(
+      this.zoom,
+      0,
+      0,
+      this.zoom,
+      this.offset.x * this.zoom,
+      this.offset.y * this.zoom,
+    );
   }
 
   pan(dx: number, dy: number) {
@@ -32,7 +39,10 @@ export class Camera {
   zoomAt(screen: Vec2, delta: number) {
     const worldBefore = this.screenToWorld(screen);
     const factor = delta > 0 ? 0.9 : 1.1;
-    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * factor));
+    this.zoom = Math.max(
+      this.minZoom,
+      Math.min(this.maxZoom, this.zoom * factor),
+    );
     const worldAfter = this.screenToWorld(screen);
     this.offset = add(this.offset, sub(worldAfter, worldBefore));
   }

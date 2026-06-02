@@ -1,10 +1,10 @@
-import { Vec2 } from '../../utils/vec2';
-import { Creature } from '../creature';
-import { GrazerBehaviour } from '../../behaviours/grazer';
-import { ShyBehaviour } from '../../behaviours/shy';
-import { CuriousBehaviour } from '../../behaviours/curious';
-import { AggressiveBehaviour } from '../../behaviours/aggressive';
-import { PredatorBehaviour } from '../../behaviours/predator';
+import { Vec2 } from "../../utils/vec2";
+import { Creature } from "../creature";
+import { GrazerBehaviour } from "../../behaviours/grazer";
+import { ShyBehaviour } from "../../behaviours/shy";
+import { CuriousBehaviour } from "../../behaviours/curious";
+import { AggressiveBehaviour } from "../../behaviours/aggressive";
+import { PredatorBehaviour } from "../../behaviours/predator";
 
 export interface SpeciesDef {
   name: string;
@@ -14,14 +14,14 @@ export interface SpeciesDef {
 
 const speciesList: SpeciesDef[] = [
   {
-    name: 'Blob',
-    description: 'Peaceful grazer, slow and green',
+    name: "Blob",
+    description: "Peaceful grazer, slow and green",
     create(pos) {
       return new Creature(pos, {
-        species: 'Blob',
-        color: '#4a4',
-        accentColor: '#6d6',
-        shape: 'circle',
+        species: "Blob",
+        color: "#4a4",
+        accentColor: "#6d6",
+        shape: "circle",
         radius: 16,
         maxSpeed: 60,
         maxHealth: 100,
@@ -33,14 +33,14 @@ const speciesList: SpeciesDef[] = [
     },
   },
   {
-    name: 'Spiker',
-    description: 'Aggressive, chases and attacks others',
+    name: "Spiker",
+    description: "Aggressive, chases and attacks others",
     create(pos) {
       return new Creature(pos, {
-        species: 'Spiker',
-        color: '#c44',
-        accentColor: '#f86',
-        shape: 'spiked',
+        species: "Spiker",
+        color: "#c44",
+        accentColor: "#f86",
+        shape: "spiked",
         radius: 15,
         maxSpeed: 80,
         maxHealth: 120,
@@ -52,14 +52,14 @@ const speciesList: SpeciesDef[] = [
     },
   },
   {
-    name: 'Floater',
-    description: 'Shy and fast, flees from danger',
+    name: "Floater",
+    description: "Shy and fast, flees from danger",
     create(pos) {
       return new Creature(pos, {
-        species: 'Floater',
-        color: '#6af',
-        accentColor: '#9cf',
-        shape: 'oval',
+        species: "Floater",
+        color: "#6af",
+        accentColor: "#9cf",
+        shape: "oval",
         radius: 10,
         maxSpeed: 110,
         maxHealth: 60,
@@ -71,14 +71,14 @@ const speciesList: SpeciesDef[] = [
     },
   },
   {
-    name: 'Crawler',
-    description: 'Large and curious, inspects everything',
+    name: "Crawler",
+    description: "Large and curious, inspects everything",
     create(pos) {
       return new Creature(pos, {
-        species: 'Crawler',
-        color: '#a87',
-        accentColor: '#cb9',
-        shape: 'rounded-rect',
+        species: "Crawler",
+        color: "#a87",
+        accentColor: "#cb9",
+        shape: "rounded-rect",
         radius: 22,
         maxSpeed: 45,
         maxHealth: 180,
@@ -90,14 +90,14 @@ const speciesList: SpeciesDef[] = [
     },
   },
   {
-    name: 'Lurker',
-    description: 'Stealthy predator, hunts smaller prey',
+    name: "Lurker",
+    description: "Stealthy predator, hunts smaller prey",
     create(pos) {
       return new Creature(pos, {
-        species: 'Lurker',
-        color: '#639',
-        accentColor: '#96c',
-        shape: 'triangle',
+        species: "Lurker",
+        color: "#639",
+        accentColor: "#96c",
+        shape: "triangle",
         radius: 14,
         maxSpeed: 90,
         maxHealth: 100,

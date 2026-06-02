@@ -1,11 +1,11 @@
-import { Vec2, vec, sub, normalize, scale, distance } from '../utils/vec2';
-import type { Behaviour } from './behaviour';
-import type { Creature } from '../entities/creature';
-import type { Entity, World } from '../entities/entity';
-import { survivalDrive, isHungry } from './survival';
+import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import type { Behaviour } from "./behaviour";
+import type { Creature } from "../entities/creature";
+import type { Entity, World } from "../entities/entity";
+import { survivalDrive, isHungry } from "./survival";
 
 export class CuriousBehaviour implements Behaviour {
-  readonly name = 'Curious';
+  readonly name = "Curious";
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly inspectRadius = 200;
 
@@ -17,7 +17,7 @@ export class CuriousBehaviour implements Behaviour {
     // Hungry with no food in sight? Roam to search rather than freeze inspecting
     // a neighbour (otherwise two curious creatures stare at each other and starve).
     if (isHungry(creature)) {
-      creature.lastActivity = 'Hungry, searching';
+      creature.lastActivity = "Hungry, searching";
       this.wanderAngle += (Math.random() - 0.5) * 0.5;
       return vec(
         Math.cos(this.wanderAngle) * creature.maxSpeed * 0.5,
@@ -39,7 +39,10 @@ export class CuriousBehaviour implements Behaviour {
     }
 
     if (nearestEntity) {
-      const label = 'species' in nearestEntity ? (nearestEntity as Creature).species : 'food';
+      const label =
+        "species" in nearestEntity
+          ? (nearestEntity as Creature).species
+          : "food";
       creature.lastActivity = `Inspecting ${label}`;
       const dir = sub(nearestEntity.position, creature.position);
       // Slow down as we get closer (curiosity, not aggression)
@@ -48,7 +51,7 @@ export class CuriousBehaviour implements Behaviour {
     }
 
     // Wander
-    creature.lastActivity = 'Wandering';
+    creature.lastActivity = "Wandering";
     this.wanderAngle += (Math.random() - 0.5) * 0.5;
     return vec(
       Math.cos(this.wanderAngle) * creature.maxSpeed * 0.4,

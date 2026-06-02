@@ -1,6 +1,10 @@
-import { Food } from '../entities/food';
+import { Food } from "../entities/food";
 
-export function drawFood(ctx: CanvasRenderingContext2D, food: Food, time: number) {
+export function drawFood(
+  ctx: CanvasRenderingContext2D,
+  food: Food,
+  time: number,
+) {
   if (!food.isAlive) return;
 
   const { position, radius, color } = food;
@@ -18,7 +22,7 @@ export function drawFood(ctx: CanvasRenderingContext2D, food: Food, time: number
   // Glow
   ctx.beginPath();
   ctx.arc(x, y, r * 2.5, 0, Math.PI * 2);
-  ctx.fillStyle = color + '18';
+  ctx.fillStyle = color + "18";
   ctx.fill();
 
   // Main dot
@@ -30,6 +34,6 @@ export function drawFood(ctx: CanvasRenderingContext2D, food: Food, time: number
   // Highlight
   ctx.beginPath();
   ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.35, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
   ctx.fill();
 }

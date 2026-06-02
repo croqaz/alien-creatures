@@ -1,9 +1,24 @@
-import { Vec2, vec, add, scale, limit, distance, sub, normalize, lerp } from '../utils/vec2';
-import { Entity, World, generateId } from './entity';
-import { Food } from './food';
-import type { Behaviour } from '../behaviours/behaviour';
+import {
+  Vec2,
+  vec,
+  add,
+  scale,
+  limit,
+  distance,
+  sub,
+  normalize,
+  lerp,
+} from "../utils/vec2";
+import { Entity, World, generateId } from "./entity";
+import { Food } from "./food";
+import type { Behaviour } from "../behaviours/behaviour";
 
-export type ShapeType = 'circle' | 'oval' | 'triangle' | 'rounded-rect' | 'spiked';
+export type ShapeType =
+  | "circle"
+  | "oval"
+  | "triangle"
+  | "rounded-rect"
+  | "spiked";
 
 export interface CreatureConfig {
   species: string;
@@ -41,7 +56,7 @@ export class Creature implements Entity {
 
   deathTime = 0;
   spawnTime: number;
-  lastActivity = 'Idle';
+  lastActivity = "Idle";
 
   constructor(position: Vec2, config: CreatureConfig) {
     this.id = generateId();
@@ -67,15 +82,30 @@ export class Creature implements Entity {
 
     const nearby = world.getNearby(this.position, this.perceptionRadius);
     const desired = this.behaviour.decide(this, nearby, world);
-    this.velocity = limit(lerp(this.velocity, desired, Math.min(1, dt * 8)), this.maxSpeed);
+    this.velocity = limit(
+      lerp(this.velocity, desired, Math.min(1, dt * 8)),
+      this.maxSpeed,
+    );
     this.position = add(this.position, scale(this.velocity, dt));
 
     // Clamp to arena
     const margin = this.radius;
-    if (this.position.x < margin) { this.position.x = margin; this.velocity.x *= -0.5; }
-    if (this.position.x > world.arenaWidth - margin) { this.position.x = world.arenaWidth - margin; this.velocity.x *= -0.5; }
-    if (this.position.y < margin) { this.position.y = margin; this.velocity.y *= -0.5; }
-    if (this.position.y > world.arenaHeight - margin) { this.position.y = world.arenaHeight - margin; this.velocity.y *= -0.5; }
+    if (this.position.x < margin) {
+      this.position.x = margin;
+      this.velocity.x *= -0.5;
+    }
+    if (this.position.x > world.arenaWidth - margin) {
+      this.position.x = world.arenaWidth - margin;
+      this.velocity.x *= -0.5;
+    }
+    if (this.position.y < margin) {
+      this.position.y = margin;
+      this.velocity.y *= -0.5;
+    }
+    if (this.position.y > world.arenaHeight - margin) {
+      this.position.y = world.arenaHeight - margin;
+      this.velocity.y *= -0.5;
+    }
 
     // Energy drain
     this.energy -= dt * 0.4;
@@ -92,10 +122,12 @@ export class Creature implements Entity {
       // Eat food
       if (e instanceof Food && d < this.radius + e.radius) {
         e.isAlive = false;
-        // Predators and aggressors (damage > 0) get 4x the healing from food.
-        const healMultiplier = this.damage > 0 ? 4 : 1;
         this.energy = Math.min(this.maxEnergy, this.energy + e.nutrition);
-        this.health = Math.min(this.maxHealth, this.health + e.nutrition * healMultiplier);
+        // Carnivores (damage > 0) draw only energy from plant food — no healing.
+        // Herbivores also heal from it.
+        if (this.damage <= 0) {
+          this.health = Math.min(this.maxHealth, this.health + e.nutrition);
+        }
       }
 
       // Creature collision
@@ -108,7 +140,13 @@ export class Creature implements Entity {
 
         // Damage if aggressive/predator
         if (this.damage > 0) {
+          const wasAlive = e.health > 0;
           e.health -= this.damage * dt;
+          // Landing the killing blow lets a carnivore feed on the prey,
+          // healing it 4x what a normal piece of food (25) would.
+          if (wasAlive && e.health <= 0) {
+            this.health = Math.min(this.maxHealth, this.health + 100);
+          }
         }
       }
     }

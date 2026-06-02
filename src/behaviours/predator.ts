@@ -1,12 +1,12 @@
-import { Vec2, vec, sub, normalize, scale, distance } from '../utils/vec2';
-import type { Behaviour } from './behaviour';
-import type { Creature } from '../entities/creature';
-import type { Entity, World } from '../entities/entity';
-import { Food } from '../entities/food';
-import { seekFoodIfHungry } from './survival';
+import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import type { Behaviour } from "./behaviour";
+import type { Creature } from "../entities/creature";
+import type { Entity, World } from "../entities/entity";
+import { Food } from "../entities/food";
+import { seekFoodIfHungry } from "./survival";
 
 export class PredatorBehaviour implements Behaviour {
-  readonly name = 'Predator';
+  readonly name = "Predator";
   private wanderAngle = Math.random() * Math.PI * 2;
   private readonly huntRadius = 300;
 
@@ -29,7 +29,7 @@ export class PredatorBehaviour implements Behaviour {
           targetDist = d;
           target = e;
         }
-      } else if ('radius' in e && e.radius < creature.radius) {
+      } else if ("radius" in e && e.radius < creature.radius) {
         // Prefer creatures over food
         if (d < targetDist || target instanceof Food) {
           targetDist = d;
@@ -39,13 +39,16 @@ export class PredatorBehaviour implements Behaviour {
     }
 
     if (target) {
-      creature.lastActivity = target instanceof Food ? 'Moving towards food' : `Hunting ${(target as Creature).species}`;
+      creature.lastActivity =
+        target instanceof Food
+          ? "Moving towards food"
+          : `Hunting ${(target as Creature).species}`;
       const dir = sub(target.position, creature.position);
       return scale(normalize(dir), creature.maxSpeed);
     }
 
     // Prowl
-    creature.lastActivity = 'Prowling';
+    creature.lastActivity = "Prowling";
     this.wanderAngle += (Math.random() - 0.5) * 0.3;
     return vec(
       Math.cos(this.wanderAngle) * creature.maxSpeed * 0.5,

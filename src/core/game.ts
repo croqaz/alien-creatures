@@ -1,11 +1,11 @@
-import { Camera } from './camera';
-import { Arena } from './arena';
-import { Input } from './input';
-import { Renderer } from '../rendering/renderer';
-import { SpatialGrid } from '../utils/spatial-grid';
-import { Entity, World } from '../entities/entity';
-import { Creature } from '../entities/creature';
-import { Vec2 } from '../utils/vec2';
+import { Camera } from "./camera";
+import { Arena } from "./arena";
+import { Input } from "./input";
+import { Renderer } from "../rendering/renderer";
+import { SpatialGrid } from "../utils/spatial-grid";
+import { Entity, World } from "../entities/entity";
+import { Creature } from "../entities/creature";
+import { Vec2 } from "../utils/vec2";
 
 export class Game implements World {
   camera = new Camera();
@@ -21,13 +21,17 @@ export class Game implements World {
   private statsTimer = 0;
   private onStatsUpdate: (() => void) | null = null;
 
-  get arenaWidth() { return this.arena.width; }
-  get arenaHeight() { return this.arena.height; }
+  get arenaWidth() {
+    return this.arena.width;
+  }
+  get arenaHeight() {
+    return this.arena.height;
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.arena = new Arena(4000, 3000);
     this.input = new Input(canvas, this.camera);
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext("2d")!;
     this.renderer = new Renderer(ctx, canvas, this.camera, this.arena);
     this.grid = new SpatialGrid(this.arena.width, this.arena.height, 200);
 

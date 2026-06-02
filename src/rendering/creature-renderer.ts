@@ -1,7 +1,11 @@
-import { Creature } from '../entities/creature';
-import { magnitude } from '../utils/vec2';
+import { Creature } from "../entities/creature";
+import { magnitude } from "../utils/vec2";
 
-export function drawCreature(ctx: CanvasRenderingContext2D, creature: Creature, time: number) {
+export function drawCreature(
+  ctx: CanvasRenderingContext2D,
+  creature: Creature,
+  time: number,
+) {
   const { position, radius, color, accentColor, shape, velocity } = creature;
   const x = position.x;
   const y = position.y;
@@ -24,19 +28,19 @@ export function drawCreature(ctx: CanvasRenderingContext2D, creature: Creature, 
 
   // Draw body
   switch (shape) {
-    case 'circle':
+    case "circle":
       drawCircleBody(ctx, radius, color, accentColor);
       break;
-    case 'oval':
+    case "oval":
       drawOvalBody(ctx, radius, color, accentColor, angle);
       break;
-    case 'triangle':
+    case "triangle":
       drawTriangleBody(ctx, radius, color, accentColor, angle);
       break;
-    case 'rounded-rect':
+    case "rounded-rect":
       drawRoundedRectBody(ctx, radius, color, accentColor, angle);
       break;
-    case 'spiked':
+    case "spiked":
       drawSpikedBody(ctx, radius, color, accentColor, time, creature.id);
       break;
   }
@@ -44,7 +48,7 @@ export function drawCreature(ctx: CanvasRenderingContext2D, creature: Creature, 
   // Eyes (look in movement direction)
   const speed = magnitude(velocity);
   const eyeAngle = speed > 5 ? angle : creature.id * 0.5; // idle gaze
-  drawEyes(ctx, radius, eyeAngle, shape === 'triangle');
+  drawEyes(ctx, radius, eyeAngle, shape === "triangle");
 
   ctx.restore();
 
@@ -56,7 +60,12 @@ export function drawCreature(ctx: CanvasRenderingContext2D, creature: Creature, 
   ctx.globalAlpha = 1;
 }
 
-function drawCircleBody(ctx: CanvasRenderingContext2D, r: number, color: string, accent: string) {
+function drawCircleBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+) {
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fillStyle = color;
@@ -66,7 +75,13 @@ function drawCircleBody(ctx: CanvasRenderingContext2D, r: number, color: string,
   ctx.stroke();
 }
 
-function drawOvalBody(ctx: CanvasRenderingContext2D, r: number, color: string, accent: string, angle: number) {
+function drawOvalBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+  angle: number,
+) {
   ctx.save();
   ctx.rotate(angle);
   ctx.beginPath();
@@ -79,7 +94,13 @@ function drawOvalBody(ctx: CanvasRenderingContext2D, r: number, color: string, a
   ctx.restore();
 }
 
-function drawTriangleBody(ctx: CanvasRenderingContext2D, r: number, color: string, accent: string, angle: number) {
+function drawTriangleBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+  angle: number,
+) {
   ctx.save();
   ctx.rotate(angle);
   ctx.beginPath();
@@ -95,7 +116,13 @@ function drawTriangleBody(ctx: CanvasRenderingContext2D, r: number, color: strin
   ctx.restore();
 }
 
-function drawRoundedRectBody(ctx: CanvasRenderingContext2D, r: number, color: string, accent: string, angle: number) {
+function drawRoundedRectBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+  angle: number,
+) {
   ctx.save();
   ctx.rotate(angle);
   const w = r * 2;
@@ -111,7 +138,14 @@ function drawRoundedRectBody(ctx: CanvasRenderingContext2D, r: number, color: st
   ctx.restore();
 }
 
-function drawSpikedBody(ctx: CanvasRenderingContext2D, r: number, color: string, accent: string, time: number, id: number) {
+function drawSpikedBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+  time: number,
+  id: number,
+) {
   const spikes = 8;
   const spikeLen = r * 0.5;
   ctx.beginPath();
@@ -131,7 +165,12 @@ function drawSpikedBody(ctx: CanvasRenderingContext2D, r: number, color: string,
   ctx.stroke();
 }
 
-function drawEyes(ctx: CanvasRenderingContext2D, r: number, angle: number, isTriangle: boolean) {
+function drawEyes(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  angle: number,
+  isTriangle: boolean,
+) {
   const eyeOffset = isTriangle ? r * 0.3 : r * 0.35;
   const eyeR = Math.max(2.5, r * 0.22);
   const pupilR = eyeR * 0.55;
@@ -144,7 +183,7 @@ function drawEyes(ctx: CanvasRenderingContext2D, r: number, angle: number, isTri
     // White
     ctx.beginPath();
     ctx.arc(ex, ey, eyeR, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = "#fff";
     ctx.fill();
 
     // Pupil (looking in direction)
@@ -152,16 +191,21 @@ function drawEyes(ctx: CanvasRenderingContext2D, r: number, angle: number, isTri
     const py = ey + Math.sin(angle) * pupilR * 0.6;
     ctx.beginPath();
     ctx.arc(px, py, pupilR, 0, Math.PI * 2);
-    ctx.fillStyle = '#111';
+    ctx.fillStyle = "#111";
     ctx.fill();
   }
 }
 
-function drawHealthBar(ctx: CanvasRenderingContext2D, x: number, y: number, ratio: number) {
+function drawHealthBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  ratio: number,
+) {
   const w = 24;
   const h = 3;
-  ctx.fillStyle = '#400';
+  ctx.fillStyle = "#400";
   ctx.fillRect(x - w / 2, y, w, h);
-  ctx.fillStyle = ratio > 0.5 ? '#4a4' : ratio > 0.25 ? '#ca4' : '#c44';
+  ctx.fillStyle = ratio > 0.5 ? "#4a4" : ratio > 0.25 ? "#ca4" : "#c44";
   ctx.fillRect(x - w / 2, y, w * ratio, h);
 }

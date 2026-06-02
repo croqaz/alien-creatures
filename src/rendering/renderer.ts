@@ -1,10 +1,10 @@
-import { Camera } from '../core/camera';
-import { Arena } from '../core/arena';
-import { Entity } from '../entities/entity';
-import { Creature } from '../entities/creature';
-import { Food } from '../entities/food';
-import { drawCreature } from './creature-renderer';
-import { drawFood } from './food-renderer';
+import { Camera } from "../core/camera";
+import { Arena } from "../core/arena";
+import { Entity } from "../entities/entity";
+import { Creature } from "../entities/creature";
+import { Food } from "../entities/food";
+import { drawCreature } from "./creature-renderer";
+import { drawFood } from "./food-renderer";
 
 export class Renderer {
   constructor(
@@ -18,14 +18,17 @@ export class Renderer {
     const { ctx, canvas, camera } = this;
 
     // Resize canvas to viewport
-    if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+    if (
+      canvas.width !== canvas.clientWidth ||
+      canvas.height !== canvas.clientHeight
+    ) {
       canvas.width = canvas.clientWidth;
       canvas.height = canvas.clientHeight;
     }
 
     // Clear
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#080810';
+    ctx.fillStyle = "#080810";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Apply camera
