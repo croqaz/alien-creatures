@@ -3,7 +3,7 @@ import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
 import { Food } from "../entities/food";
-import { seekFoodIfHungry } from "./survival";
+import { seekFoodIfHungry, seekHealingIfHurt } from "./survival";
 
 export class PredatorBehaviour implements Behaviour {
   readonly name = "Predator";
@@ -11,6 +11,10 @@ export class PredatorBehaviour implements Behaviour {
   private readonly huntRadius = 300;
 
   decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
+    // When wounded, find a heart before doing anything else.
+    const healing = seekHealingIfHurt(creature, nearby, world);
+    if (healing) return healing;
+
     // When hungry, head straight for the nearest food before hunting.
     const food = seekFoodIfHungry(creature, nearby, world);
     if (food) return food;

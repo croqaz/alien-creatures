@@ -2,15 +2,52 @@ import { Vec2, vec, sub, add, normalize, scale, distance } from "../utils/vec2";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
 import { Food } from "../entities/food";
+import { Heart } from "../entities/heart";
 
 // How close a dangerous creature must be before we flee it.
 const THREAT_RADIUS = 220;
 // Below this fraction of max energy, finding food takes priority over everything else.
 const HUNGRY_FRACTION = 0.4;
+// Below this fraction of max health, seeking out a healing heart kicks in.
+const HURT_FRACTION = 0.6;
 
 /** A creature is hungry when its energy drops low enough that starvation is a real risk. */
 export function isHungry(creature: Creature): boolean {
   return creature.energy < creature.maxEnergy * HUNGRY_FRACTION;
+}
+
+/** A creature is hurt when it has taken enough damage to go looking for a heart. */
+export function isHurt(creature: Creature): boolean {
+  return creature.health < creature.maxHealth * HURT_FRACTION;
+}
+
+/**
+ * When the creature is hurt, returns a desired velocity towards the nearest
+ * visible healing heart, or null if it isn't hurt or none is in range. Mirrors
+ * `seekFoodIfHungry` so every behaviour can prioritise patching itself up.
+ */
+export function seekHealingIfHurt(
+  creature: Creature,
+  nearby: Entity[],
+  world: World,
+): Vec2 | null {
+  if (!isHurt(creature)) return null;
+
+  let nearestHeart: Heart | null = null;
+  let nearestDist = Infinity;
+  for (const e of nearby) {
+    if (e instanceof Heart && e.isAlive) {
+      const d = distance(creature.position, e.position);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestHeart = e;
+      }
+    }
+  }
+  if (!nearestHeart) return null;
+
+  creature.lastActivity = "Hurt, seeking a heart";
+  return creature.nav.seek(creature, nearestHeart.position, world);
 }
 
 /**
@@ -74,6 +111,10 @@ export function survivalDrive(
     return creature.nav.flee(creature, fleeForce, world);
   }
 
-  // 2. If we're running low on energy, prioritise finding food over sightseeing.
+  // 2. If we're wounded, go patch up at the nearest heart.
+  const healing = seekHealingIfHurt(creature, nearby, world);
+  if (healing) return healing;
+
+  // 3. If we're running low on energy, prioritise finding food over sightseeing.
   return seekFoodIfHungry(creature, nearby, world);
 }

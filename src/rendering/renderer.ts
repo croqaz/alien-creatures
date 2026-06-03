@@ -3,9 +3,11 @@ import { Arena } from "../core/arena";
 import { Entity } from "../entities/entity";
 import { Creature } from "../entities/creature";
 import { Food } from "../entities/food";
+import { Heart } from "../entities/heart";
 import { Wall } from "../entities/wall";
 import { drawCreature } from "./creature-renderer";
 import { drawFood } from "./food-renderer";
+import { drawHeart } from "./heart-renderer";
 
 export class Renderer {
   constructor(
@@ -49,14 +51,17 @@ export class Renderer {
       ctx.strokeRect(x + 1, y + 1, w.size - 2, w.size - 2);
     }
 
-    // Sort: food first, then creatures (so creatures draw on top)
+    // Sort: pickups (food/hearts) first, then creatures (so creatures draw on top)
     const foods: Food[] = [];
+    const hearts: Heart[] = [];
     const creatures: Creature[] = [];
     const dead: Creature[] = [];
 
     for (const e of entities) {
       if (e instanceof Food) {
         if (e.isAlive) foods.push(e);
+      } else if (e instanceof Heart) {
+        if (e.isAlive) hearts.push(e);
       } else if (e instanceof Creature) {
         if (e.isAlive) creatures.push(e);
         else dead.push(e);
@@ -64,6 +69,7 @@ export class Renderer {
     }
 
     for (const f of foods) drawFood(ctx, f, time);
+    for (const h of hearts) drawHeart(ctx, h, time);
     for (const c of dead) drawCreature(ctx, c, time);
     for (const c of creatures) drawCreature(ctx, c, time);
 

@@ -2,7 +2,7 @@ import { Vec2, vec, sub, normalize, scale, add, distance } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
-import { seekFoodIfHungry } from "./survival";
+import { seekFoodIfHungry, seekHealingIfHurt } from "./survival";
 
 export class ShyBehaviour implements Behaviour {
   readonly name = "Shy";
@@ -31,7 +31,9 @@ export class ShyBehaviour implements Behaviour {
       return creature.nav.flee(creature, fleeForce, world);
     }
 
-    // No immediate danger: feed if hungry before idling.
+    // No immediate danger: heal up if hurt, then feed if hungry, before idling.
+    const healing = seekHealingIfHurt(creature, nearby, world);
+    if (healing) return healing;
     const food = seekFoodIfHungry(creature, nearby, world);
     if (food) return food;
 

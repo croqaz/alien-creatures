@@ -1,6 +1,7 @@
 import type { Game } from "../core/game";
 import { getSpeciesList, getSpecies } from "../entities/creatures/registry";
 import { Food } from "../entities/food";
+import { Heart } from "../entities/heart";
 import { Creature } from "../entities/creature";
 import type { Entity } from "../entities/entity";
 import { Vec2, randomInRect, distance } from "../utils/vec2";
@@ -8,11 +9,14 @@ import { Vec2, randomInRect, distance } from "../utils/vec2";
 export class Panel {
   private deleteMode = false;
   private wallMode = false;
+  /** Last non-zero sim speed, restored when un-pausing with Space. */
+  private prevSpeed = 1;
 
   constructor(private game: Game) {
     this.populateSpeciesSelect();
     this.bindButtons();
     this.bindSpeedControls();
+    this.bindKeyboard();
   }
 
   /**
@@ -52,11 +56,18 @@ export class Panel {
 
   private bindButtons() {
     const spawnCreatureBtn = document.getElementById("spawn-creature-btn")!;
-    const spawnCreature10Btn = document.getElementById(
-      "spawn-creature-10-btn",
-    )!;
     const spawnFoodBtn = document.getElementById("spawn-food-btn")!;
-    const spawnFood100Btn = document.getElementById("spawn-food-100-btn")!;
+    const spawnHeartBtn = document.getElementById("spawn-heart-btn")!;
+    const creatureCount = document.getElementById(
+      "creature-count",
+    ) as HTMLInputElement;
+    const creatureCountVal = document.getElementById("creature-count-val")!;
+    const foodCount = document.getElementById("food-count") as HTMLInputElement;
+    const foodCountVal = document.getElementById("food-count-val")!;
+    const heartCount = document.getElementById(
+      "heart-count",
+    ) as HTMLInputElement;
+    const heartCountVal = document.getElementById("heart-count-val")!;
     const deleteModeBtn = document.getElementById("delete-mode-btn")!;
     const wallModeBtn = document.getElementById("wall-mode-btn")!;
     const select = document.getElementById(
@@ -80,20 +91,35 @@ export class Panel {
       this.game.addEntity(species.create(this.randomFreePos(100, 24)));
     };
 
-    spawnCreatureBtn.addEventListener("click", spawnCreature);
-
-    spawnCreature10Btn.addEventListener("click", () => {
-      for (let i = 0; i < 10; i++) spawnCreature();
+    // Sliders mirror their current value into the adjacent label as you drag.
+    creatureCount.addEventListener("input", () => {
+      creatureCountVal.textContent = creatureCount.value;
+    });
+    foodCount.addEventListener("input", () => {
+      foodCountVal.textContent = foodCount.value;
+    });
+    heartCount.addEventListener("input", () => {
+      heartCountVal.textContent = heartCount.value;
     });
 
-    const spawnFood = (count: number) => {
-      for (let i = 0; i < count; i++) {
+    spawnCreatureBtn.addEventListener("click", () => {
+      const n = Number(creatureCount.value);
+      for (let i = 0; i < n; i++) spawnCreature();
+    });
+
+    spawnFoodBtn.addEventListener("click", () => {
+      const n = Number(foodCount.value);
+      for (let i = 0; i < n; i++) {
         this.game.addEntity(new Food(this.randomFreePos(50, 8)));
       }
-    };
+    });
 
-    spawnFoodBtn.addEventListener("click", () => spawnFood(10));
-    spawnFood100Btn.addEventListener("click", () => spawnFood(100));
+    spawnHeartBtn.addEventListener("click", () => {
+      const n = Number(heartCount.value);
+      for (let i = 0; i < n; i++) {
+        this.game.addEntity(new Heart(this.randomFreePos(50, 10)));
+      }
+    });
 
     deleteModeBtn.addEventListener("click", () => {
       this.deleteMode = !this.deleteMode;
@@ -111,10 +137,10 @@ export class Panel {
     this.game.input.onClick = (worldPos: Vec2) => {
       if (this.wallMode) {
         this.game.walls.placeAt(worldPos);
-        // Remove any food now buried in the wall so nothing chases the unreachable.
+        // Remove any food/hearts now buried in the wall so nothing chases the unreachable.
         for (const e of this.game.entities) {
           if (
-            e instanceof Food &&
+            (e instanceof Food || e instanceof Heart) &&
             e.isAlive &&
             this.game.walls.overlaps(e.position, e.radius)
           ) {
@@ -144,10 +170,31 @@ export class Panel {
     buttons.forEach((btn) => {
       btn.addEventListener("click", () => {
         const speed = Number((btn as HTMLElement).dataset["speed"]);
-        this.game.simSpeed = speed;
-        buttons.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
+        this.setSpeed(speed);
       });
+    });
+  }
+
+  /** Set the sim speed and keep the speed buttons' highlight in sync. */
+  private setSpeed(speed: number) {
+    this.game.simSpeed = speed;
+    if (speed !== 0) this.prevSpeed = speed; // remember it for un-pausing
+    const buttons = document.querySelectorAll(".speed-controls button");
+    buttons.forEach((b) => {
+      const s = Number((b as HTMLElement).dataset["speed"]);
+      b.classList.toggle("active", s === speed);
+    });
+  }
+
+  /** Space toggles pause, restoring the previous speed when resumed. */
+  private bindKeyboard() {
+    window.addEventListener("keydown", (e) => {
+      if (e.code !== "Space" && e.key !== " ") return;
+      // Don't hijack Space while a form control (slider, select) has focus.
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      this.setSpeed(this.game.simSpeed === 0 ? this.prevSpeed : 0);
     });
   }
 
@@ -159,6 +206,9 @@ export class Panel {
     const food = this.game.entities.filter(
       (e: Entity) => e instanceof Food && e.isAlive,
     );
+    const hearts = this.game.entities.filter(
+      (e: Entity) => e instanceof Heart && e.isAlive,
+    );
 
     const byCounts = new Map<string, number>();
     for (const c of creatures) {
@@ -167,7 +217,7 @@ export class Panel {
       }
     }
 
-    let html = `Creatures: ${creatures.length} &nbsp;|&nbsp; Food: ${food.length}<br>`;
+    let html = `Creatures: ${creatures.length} &nbsp;|&nbsp; Food: ${food.length} &nbsp;|&nbsp; Hearts: ${hearts.length}<br>`;
     for (const [name, count] of byCounts) {
       html += `${name}: ${count} &nbsp; `;
     }

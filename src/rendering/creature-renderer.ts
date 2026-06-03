@@ -43,6 +43,9 @@ export function drawCreature(
     case "spiked":
       drawSpikedBody(ctx, radius, color, accentColor, time, creature.id);
       break;
+    case "pentagon":
+      drawPentagonBody(ctx, radius, color, accentColor, angle);
+      break;
   }
 
   // Eyes (look in movement direction)
@@ -163,6 +166,34 @@ function drawSpikedBody(
   ctx.strokeStyle = accent;
   ctx.lineWidth = 1.5;
   ctx.stroke();
+}
+
+function drawPentagonBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+  angle: number,
+) {
+  ctx.save();
+  ctx.rotate(angle);
+  ctx.beginPath();
+  const sides = 5;
+  for (let i = 0; i < sides; i++) {
+    // Start at the top point so the pentagon reads upright before rotation.
+    const a = -Math.PI / 2 + (i / sides) * Math.PI * 2;
+    const px = Math.cos(a) * r * 1.15;
+    const py = Math.sin(a) * r * 1.15;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawEyes(

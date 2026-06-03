@@ -11,6 +11,7 @@ import {
 } from "../utils/vec2";
 import { Entity, World, generateId } from "./entity";
 import { Food } from "./food";
+import { Heart } from "./heart";
 import type { Behaviour } from "../behaviours/behaviour";
 import { Navigator } from "../behaviours/navigator";
 
@@ -19,7 +20,11 @@ export type ShapeType =
   | "oval"
   | "triangle"
   | "rounded-rect"
-  | "spiked";
+  | "spiked"
+  | "pentagon";
+
+/** How long (ms) a provoked defender stays hostile after the last hit it takes. */
+const RETALIATION_MS = 2000;
 
 export interface CreatureConfig {
   species: string;
@@ -31,6 +36,11 @@ export interface CreatureConfig {
   maxHealth: number;
   maxEnergy: number;
   damage: number;
+  /**
+   * Contact damage dealt only while provoked (a peaceful creature struck by
+   * something hostile fights back). 0/undefined means it never retaliates.
+   */
+  retaliation?: number;
   perceptionRadius: number;
   behaviour: Behaviour;
 }
@@ -52,8 +62,15 @@ export class Creature implements Entity {
   energy: number;
   maxEnergy: number;
   damage: number;
+  retaliation: number;
   perceptionRadius: number;
   behaviour: Behaviour;
+
+  /**
+   * Timestamp (performance.now) until which a retaliating creature stays
+   * hostile. While provoked its `attackDamage` is its `retaliation` value.
+   */
+  private provokedUntil = 0;
 
   /** Wall-aware navigation, used by behaviours that move toward or away from a target. */
   nav = new Navigator();
@@ -84,9 +101,37 @@ export class Creature implements Entity {
     this.energy = config.maxEnergy;
     this.maxEnergy = config.maxEnergy;
     this.damage = config.damage;
+    this.retaliation = config.retaliation ?? 0;
     this.perceptionRadius = config.perceptionRadius;
     this.behaviour = config.behaviour;
     this.spawnTime = performance.now();
+  }
+
+  /** True while a retaliating creature is still fighting back after a hit. */
+  get isProvoked(): boolean {
+    return this.retaliation > 0 && performance.now() < this.provokedUntil;
+  }
+
+  /**
+   * Mark this creature as struck by something hostile. A retaliating species
+   * (retaliation > 0) fights back for the next RETALIATION_MS; harmless species
+   * ignore it. Called by the attacker when it lands a hit, so provocation is
+   * independent of creature update order and the mutual collision push-apart.
+   */
+  provoke() {
+    if (this.retaliation > 0) {
+      this.provokedUntil = performance.now() + RETALIATION_MS;
+    }
+  }
+
+  /**
+   * Contact damage this creature actually deals right now. Normally `damage`,
+   * but a provoked defender deals its `retaliation` value instead. This single
+   * value drives all combat: >0 deals damage and heals on a kill (predator-like),
+   * <=0 heals from plant food (herbivore-like).
+   */
+  get attackDamage(): number {
+    return this.isProvoked ? this.retaliation : this.damage;
   }
 
   update(dt: number, world: World) {
@@ -156,11 +201,18 @@ export class Creature implements Entity {
       if (e instanceof Food && d < this.radius + e.radius) {
         e.isAlive = false;
         this.energy = Math.min(this.maxEnergy, this.energy + e.nutrition);
-        // Carnivores (damage > 0) draw only energy from plant food — no healing.
-        // Herbivores also heal from it.
-        if (this.damage <= 0) {
+        // Carnivores (attackDamage > 0) draw only energy from plant food — no
+        // healing. Herbivores also heal from it. A provoked defender feeds like
+        // a carnivore for the moment, so it only heals from kills, not grazing.
+        if (this.attackDamage <= 0) {
           this.health = Math.min(this.maxHealth, this.health + e.nutrition);
         }
+      }
+
+      // Touch a heart to heal (every creature benefits, carnivore or not)
+      if (e instanceof Heart && d < this.radius + e.radius) {
+        e.isAlive = false;
+        this.health = Math.min(this.maxHealth, this.health + e.healing);
       }
 
       // Creature collision
@@ -171,10 +223,15 @@ export class Creature implements Entity {
         this.position = add(this.position, scale(pushDir, overlap));
         e.position = add(e.position, scale(pushDir, -overlap));
 
-        // Damage if aggressive/predator
-        if (this.damage > 0) {
+        // Damage if aggressive/predator (or a provoked defender fighting back)
+        if (this.attackDamage > 0) {
           const wasAlive = e.health > 0;
-          e.health -= this.damage * dt;
+          e.health -= this.attackDamage * dt;
+          // Whatever we just hit fights back if it's a retaliating species.
+          // Done from the attacker's side so it's immune to update order and
+          // the push-apart above (which can separate us before the victim runs
+          // its own collision check).
+          e.provoke();
           // Landing the killing blow lets a carnivore feed on the prey,
           // healing it 4x what a normal piece of food (25) would.
           if (wasAlive && e.health <= 0) {

@@ -2,7 +2,7 @@ import { Vec2, vec, distance } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
-import { seekFoodIfHungry } from "./survival";
+import { seekFoodIfHungry, seekHealingIfHurt } from "./survival";
 
 export class AggressiveBehaviour implements Behaviour {
   readonly name = "Aggressive";
@@ -10,6 +10,10 @@ export class AggressiveBehaviour implements Behaviour {
   private readonly chaseRadius = 250;
 
   decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
+    // When wounded, patch up at a heart before picking fights.
+    const healing = seekHealingIfHurt(creature, nearby, world);
+    if (healing) return healing;
+
     // When hungry, food comes before picking fights.
     const food = seekFoodIfHungry(creature, nearby, world);
     if (food) return food;

@@ -5,6 +5,7 @@ import { ShyBehaviour } from "../../behaviours/shy";
 import { CuriousBehaviour } from "../../behaviours/curious";
 import { AggressiveBehaviour } from "../../behaviours/aggressive";
 import { PredatorBehaviour } from "../../behaviours/predator";
+import { DefenderBehaviour } from "../../behaviours/defender";
 
 export interface SpeciesDef {
   name: string;
@@ -105,6 +106,26 @@ const speciesList: SpeciesDef[] = [
         damage: 35,
         perceptionRadius: 300,
         behaviour: new PredatorBehaviour(),
+      });
+    },
+  },
+  {
+    name: "Defender",
+    description: "Peaceful grazer that fights back when attacked",
+    create(pos) {
+      return new Creature(pos, {
+        species: "Defender",
+        color: "#f80",
+        accentColor: "#fc6",
+        shape: "pentagon",
+        radius: 16,
+        maxSpeed: 60,
+        maxHealth: 140,
+        maxEnergy: 120,
+        damage: 0,
+        retaliation: 30,
+        perceptionRadius: 200,
+        behaviour: new DefenderBehaviour(),
       });
     },
   },
