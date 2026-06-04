@@ -1,10 +1,11 @@
+
 export class Creature implements Entity {
   id: number;
   species: string;
   faction?: string;
   color: string;
   accentColor: string;
-  shape: ShapeType;
+  shape: string;
   radius: number;
   maxSpeed: number;
   health: number;
@@ -22,10 +23,13 @@ export class Creature implements Entity {
   position: Vec2;
   velocity: Vec2 = vec(0, 0);
   nav = new Navigator();
+  // buffs: ...
+  // buffTimers: ...
 
-  update(dt: number, world: World) {
-    // When either health or energy is depleted, the creature cannot perform any actions
-    if (this.health <= 0 || this.energy <= 0) return;
-    // ...
+  update(dt: number, world: World): void {
+    if (this.health <= 0) return;
+
+    // Energy drain: 1 energy every 10 seconds
+    // if (this.energy !== Infinity) {
   }
 }

@@ -8,17 +8,17 @@ There are 4 game speeds: 1x, 2x, 3x, 4x (keys 1, 2, 3, 4 respectively) and pause
 The player can spawn a few creatures:
 
 - a peaceful green blob that walks around slowly and eats green fuel, or red hearts and runs away if predators are very close;
-  The blob has maxSpeed:60, maxHealth:140, maxEnergy:120.
+  The blob is a round shape & has maxSpeed:60, maxHealth:140, maxEnergy:120.
 - a fast and very shy floater that runs away from any creature, including its own species. It's the fastest creature;
   The floater has maxSpeed:120, maxHealth:60, maxEnergy:80.
 - a super curious crawler that tries to get close to any creature and look at it, including its own species. It has the most HP;
   The crawler has maxSpeed:40, maxHealth:180, maxEnergy:160.
 - a mighty defender that is normally peaceful, but fill retaliate for a short time when an aggressive creature attacks it;
-  The defender has maxSpeed:70, maxHealth:120, maxEnergy:160.
+  The defender has a square shape & has maxSpeed:70, maxHealth:120, maxEnergy:160.
 - a Lurker stealth predator that hunts creatures smaller than it (based on creature radius)
-  The lurker has maxSpeed:100, maxHealth:100, maxEnergy:80.
+  The lurker is a triangle shape & has maxSpeed:100, maxHealth:100, maxEnergy:80.
 - a Spiker aggressive hunter that hunts any other creature except its own species
-  The spiker has maxSpeed:80, maxHealth:100, maxEnergy:100.
+  The spiker is a spiky shape & has maxSpeed:80, maxHealth:100, maxEnergy:100.
 
 All creatures consume energy at the rate of 1 energy every 10 seconds (constant defined in core config),
 unless they have energy=Infinity. When the energy reaches 0, creatures take 1 damage per second until they die,
@@ -32,17 +32,22 @@ All creatures are peaceful to their own faction, and they tend to help each othe
 but only if they have either damage>0 or retaliation>0.
 
 The creature behaviours are modular and flexible and we will have more behaviours and creatures in the future.
+We will definitely have bosses and boss minions and factions for them in the future, don't implement this yet.
 
 Other than creatures, a player can also spawn:
 
 - green fuel cells that replenish creature energy
 - red health hearts that heal creature health
 
+In the future we will have objects that decay over time, so prepare the code for that.
+
 There are a few buffs that can be placed on the map:
 
 - an invulnerability shield buff that makes a creature invulnerable to damage and also doesn't use any energy for 10 seconds
 - a speed buff that makes a creature 2x faster for 10 seconds
 - a dagger buff that makes creatures with either damage or retaliation have 2x either damage or retaliation
+
+We will have more types of buffs in the future, so make it flexible and don't hardcode them.
 
 A player can also place Spawner towers, that spawn one type of creature.
 There is one special spawner for every type of creature.
@@ -53,6 +58,8 @@ Spawner towers spawn their respective creature once every X seconds
 
 The UI is HTML and the game arena takes the whole screen but there's a UI and the user can
 click to spawn 1 or more of any creature, or object (like fuel or heart), or spawner.
+The player can select one creature and see its stats like HP, energy and what it's currently doing
+(Wandering, Looking for energy, Running from Spiker, Hunting a Blob, etc)
 
 There are some TypeScript code files already defined in folder `src/`, please follow that structure.
 
