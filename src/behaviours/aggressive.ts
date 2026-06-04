@@ -25,10 +25,12 @@ export class AggressiveBehaviour implements Behaviour {
     for (const e of nearby) {
       if (e === creature || !e.isAlive) continue;
       if (!("species" in e)) continue;
-      const d = distance(creature.position, e.position);
+      const other = e as Creature;
+      if (creature.alliedWith(other)) continue; // never hunt a loyal ally
+      const d = distance(creature.position, other.position);
       if (d < this.chaseRadius && d < targetDist) {
         targetDist = d;
-        target = e as Creature;
+        target = other;
       }
     }
 

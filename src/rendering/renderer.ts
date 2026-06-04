@@ -2,12 +2,22 @@ import { Camera } from "../core/camera";
 import { Arena } from "../core/arena";
 import { Entity } from "../entities/entity";
 import { Creature } from "../entities/creature";
+import { Spawner } from "../entities/spawner";
 import { Food } from "../entities/food";
 import { Heart } from "../entities/heart";
+import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
+import { Fireball } from "../entities/fireball";
 import { Wall } from "../entities/wall";
 import { drawCreature } from "./creature-renderer";
+import { drawSpawner } from "./spawner-renderer";
 import { drawFood } from "./food-renderer";
 import { drawHeart } from "./heart-renderer";
+import { drawFireball } from "./fireball-renderer";
+import {
+  drawShieldPowerup,
+  drawSpeedPowerup,
+  drawSwordPowerup,
+} from "./powerup-renderer";
 
 export class Renderer {
   constructor(
@@ -54,14 +64,30 @@ export class Renderer {
     // Sort: pickups (food/hearts) first, then creatures (so creatures draw on top)
     const foods: Food[] = [];
     const hearts: Heart[] = [];
+    const shields: ShieldPowerup[] = [];
+    const speeds: SpeedPowerup[] = [];
+    const swords: SwordPowerup[] = [];
+    const fireballs: Fireball[] = [];
+    const spawners: Spawner[] = [];
     const creatures: Creature[] = [];
     const dead: Creature[] = [];
 
     for (const e of entities) {
-      if (e instanceof Food) {
+      if (e instanceof Fireball) {
+        if (e.isAlive) fireballs.push(e);
+      } else if (e instanceof Spawner) {
+        // Checked before Creature: a Spawner is a Creature subclass.
+        if (e.isAlive) spawners.push(e);
+      } else if (e instanceof Food) {
         if (e.isAlive) foods.push(e);
       } else if (e instanceof Heart) {
         if (e.isAlive) hearts.push(e);
+      } else if (e instanceof ShieldPowerup) {
+        if (e.isAlive) shields.push(e);
+      } else if (e instanceof SpeedPowerup) {
+        if (e.isAlive) speeds.push(e);
+      } else if (e instanceof SwordPowerup) {
+        if (e.isAlive) swords.push(e);
       } else if (e instanceof Creature) {
         if (e.isAlive) creatures.push(e);
         else dead.push(e);
@@ -70,8 +96,15 @@ export class Renderer {
 
     for (const f of foods) drawFood(ctx, f, time);
     for (const h of hearts) drawHeart(ctx, h, time);
+    for (const p of shields) drawShieldPowerup(ctx, p, time);
+    for (const p of speeds) drawSpeedPowerup(ctx, p, time);
+    for (const p of swords) drawSwordPowerup(ctx, p, time);
+    // Towers sit beneath the creatures milling around them.
+    for (const s of spawners) drawSpawner(ctx, s, time);
     for (const c of dead) drawCreature(ctx, c, time);
     for (const c of creatures) drawCreature(ctx, c, time);
+    // Fireballs draw on top of everything so they read as active projectiles.
+    for (const fb of fireballs) drawFireball(ctx, fb, time);
 
     // Reset transform
     ctx.setTransform(1, 0, 0, 1, 0, 0);

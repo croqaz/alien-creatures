@@ -13,27 +13,36 @@ import { survivalDrive } from "./survival";
 export class DefenderBehaviour implements Behaviour {
   readonly name = "Defender";
   private wanderAngle = Math.random() * Math.PI * 2;
+  // A predator this close (or closer) makes the defender stand its ground and
+  // attack, rather than waiting to actually be struck.
+  private readonly fightRadius = 170;
 
   decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
-    // Once provoked, stop fleeing and chase down the nearest threat to fight back.
-    if (creature.isProvoked) {
-      let attacker: Creature | null = null;
-      let nearestDist = Infinity;
-      for (const e of nearby) {
-        if (e === creature || !e.isAlive) continue;
-        if (!("species" in e)) continue; // only creatures are threats
-        const other = e as Creature;
-        if (other.damage <= 0) continue; // only the genuinely dangerous
-        const d = distance(creature.position, other.position);
-        if (d < nearestDist) {
-          nearestDist = d;
-          attacker = other;
-        }
+    // Find the nearest genuine threat (something that deals contact damage).
+    let threat: Creature | null = null;
+    let threatDist = Infinity;
+    for (const e of nearby) {
+      if (e === creature || !e.isAlive) continue;
+      if (!("species" in e)) continue; // only creatures are threats
+      const other = e as Creature;
+      if (other.damage <= 0) continue; // only the genuinely dangerous
+      const d = distance(creature.position, other.position);
+      if (d < threatDist) {
+        threatDist = d;
+        threat = other;
       }
-      if (attacker) {
-        creature.lastActivity = `Fighting back against ${attacker.species}`;
-        return creature.nav.seek(creature, attacker.position, world);
-      }
+    }
+
+    // A predator within fight range provokes the defender into retaliating
+    // (provoke() arms its retaliation damage). Once provoked it keeps charging
+    // the nearest threat until the retaliation window lapses, so it doesn't
+    // flip back to fleeing the instant the predator drifts a hair out of range.
+    if (threat && threatDist <= this.fightRadius) {
+      creature.provoke();
+    }
+    if (threat && creature.isProvoked) {
+      creature.lastActivity = `Fighting back against ${threat.species}`;
+      return creature.nav.seek(creature, threat.position, world);
     }
 
     // Otherwise behave like a grazer: flee looming predators, then forage.

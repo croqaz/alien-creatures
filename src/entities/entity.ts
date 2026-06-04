@@ -12,6 +12,12 @@ export interface Entity {
 export interface World {
   entities: Entity[];
   getNearby(position: Vec2, radius: number): Entity[];
+  /**
+   * Queue a new entity to enter the world. Safe to call from inside an entity's
+   * update (e.g. the boss spawning minions, or firing a projectile): the entity
+   * joins the simulation after the current update pass, not mid-iteration.
+   */
+  spawn(entity: Entity): void;
   walls: WallGrid;
   arenaWidth: number;
   arenaHeight: number;

@@ -34,6 +34,8 @@ export class PredatorBehaviour implements Behaviour {
           target = e;
         }
       } else if ("radius" in e && e.radius < creature.radius) {
+        // Never hunt a loyal ally (same faction packs hunt together).
+        if ("species" in e && creature.alliedWith(e as Creature)) continue;
         // Prefer creatures over food
         if (d < targetDist || target instanceof Food) {
           targetDist = d;

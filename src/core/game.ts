@@ -17,6 +17,9 @@ export class Game implements World {
   simSpeed = 1;
   time = 0;
 
+  /** Entities queued during an update pass, merged in once the pass finishes. */
+  private pending: Entity[] = [];
+
   private renderer: Renderer;
   private grid: SpatialGrid;
   private lastTime = 0;
@@ -47,6 +50,11 @@ export class Game implements World {
 
   addEntity(entity: Entity) {
     this.entities.push(entity);
+  }
+
+  /** World.spawn: queue an entity created mid-update; merged in after the pass. */
+  spawn(entity: Entity) {
+    this.pending.push(entity);
   }
 
   getNearby(position: Vec2, radius: number): Entity[] {
@@ -81,6 +89,13 @@ export class Game implements World {
     // Update entities
     for (const e of this.entities) {
       e.update(dt, this);
+    }
+
+    // Merge in anything spawned during the pass (boss minions, fireballs) so it
+    // joins the sim on the next frame rather than mutating the list mid-update.
+    if (this.pending.length > 0) {
+      this.entities.push(...this.pending);
+      this.pending.length = 0;
     }
 
     // Remove long-dead entities

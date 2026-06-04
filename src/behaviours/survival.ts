@@ -3,9 +3,12 @@ import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
 import { Food } from "../entities/food";
 import { Heart } from "../entities/heart";
+import { Fireball } from "../entities/fireball";
 
 // How close a dangerous creature must be before we flee it.
 const THREAT_RADIUS = 220;
+// How close an incoming fireball must be before a creature scrambles to dodge.
+const FIREBALL_DODGE_RADIUS = 200;
 // Below this fraction of max energy, finding food takes priority over everything else.
 const HUNGRY_FRACTION = 0.4;
 // Below this fraction of max health, seeking out a healing heart kicks in.
@@ -13,6 +16,7 @@ const HURT_FRACTION = 0.6;
 
 /** A creature is hungry when its energy drops low enough that starvation is a real risk. */
 export function isHungry(creature: Creature): boolean {
+  if (creature.infiniteEnergy) return false; // never spends energy, never hungry
   return creature.energy < creature.maxEnergy * HUNGRY_FRACTION;
 }
 
@@ -80,6 +84,28 @@ export function seekFoodIfHungry(
 }
 
 /**
+ * Accumulated "run away" force from any incoming fireballs in range. Creatures
+ * read a fireball as a hostile, fast-moving threat and scramble away from it.
+ * The push is weighted heavier than a creature threat (×1.6) so dodging a
+ * projectile takes priority. Fireballs from the creature's own faction can't
+ * hurt it, so it ignores those. Returns a zero vector when nothing's incoming.
+ */
+export function fireballDodgeForce(creature: Creature, nearby: Entity[]): Vec2 {
+  let force = vec(0, 0);
+  for (const e of nearby) {
+    if (!(e instanceof Fireball) || !e.isAlive) continue;
+    if (e.faction !== "" && e.faction === creature.faction) continue; // harmless to us
+    const d = distance(creature.position, e.position);
+    if (d < FIREBALL_DODGE_RADIUS && d > 0) {
+      const away = normalize(sub(creature.position, e.position));
+      const urgency = 1 - d / FIREBALL_DODGE_RADIUS;
+      force = add(force, scale(away, urgency * 1.6));
+    }
+  }
+  return force;
+}
+
+/**
  * Shared survival instinct used by otherwise-passive behaviours (curious, grazer).
  * Flees creatures that can deal damage, then seeks food when hungry.
  * Returns a desired velocity when survival should override normal behaviour,
@@ -90,7 +116,8 @@ export function survivalDrive(
   nearby: Entity[],
   world: World,
 ): Vec2 | null {
-  // 1. Flee from anything that can hurt us (predators / aggressors deal collision damage).
+  // 1. Flee from anything that can hurt us (predators / aggressors deal collision
+  //    damage) and dodge any incoming fireballs.
   let fleeForce = vec(0, 0);
   let threats = 0;
   for (const e of nearby) {
@@ -98,6 +125,7 @@ export function survivalDrive(
     if (!("species" in e)) continue; // only creatures are dangerous
     const other = e as Creature;
     if (other.damage <= 0) continue; // harmless, ignore
+    if (creature.alliedWith(other)) continue; // never fear a faction ally
     const d = distance(creature.position, other.position);
     if (d < THREAT_RADIUS && d > 0) {
       const away = normalize(sub(creature.position, other.position));
@@ -105,6 +133,11 @@ export function survivalDrive(
       fleeForce = add(fleeForce, scale(away, urgency));
       threats++;
     }
+  }
+  const dodge = fireballDodgeForce(creature, nearby);
+  if (dodge.x !== 0 || dodge.y !== 0) {
+    fleeForce = add(fleeForce, dodge);
+    threats++;
   }
   if (threats > 0) {
     creature.lastActivity = `Fleeing (${threats} nearby)`;

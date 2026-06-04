@@ -26,6 +26,56 @@ export function drawCreature(
   // Rotation based on velocity
   const angle = Math.atan2(velocity.y, velocity.x);
 
+  // Enraged aura: a big creature past half health (the boss in stage 2) pulses
+  // a menacing red halo so its second phase reads at a glance.
+  const enraged =
+    radius >= 60 && creature.health <= creature.maxHealth * 0.5 && alive;
+  if (enraged) {
+    const pulse = 1 + Math.sin(time * 8 + creature.id) * 0.05;
+    const ar = radius * 1.5 * pulse;
+    const aura = ctx.createRadialGradient(0, 0, radius * 0.8, 0, 0, ar);
+    aura.addColorStop(0, "rgba(220, 30, 30, 0.35)");
+    aura.addColorStop(1, "rgba(220, 30, 30, 0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, ar, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Elite aura: a red halo that pulses noticeably, marking the rare 10×-stats
+  // variant. Drawn for elites of any size (the boss's enraged halo above is a
+  // separate, boss-only effect), and a touch larger/stronger so it stands out.
+  if (creature.isElite && alive) {
+    const pulse = 1 + Math.sin(time * 6 + creature.id) * 0.12;
+    const ar = (radius + 10) * 1.4 * pulse;
+    const aura = ctx.createRadialGradient(0, 0, radius * 0.7, 0, 0, ar);
+    aura.addColorStop(0, "rgba(255, 40, 40, 0.5)");
+    aura.addColorStop(1, "rgba(255, 40, 40, 0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, ar, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Speed boost: amber streaks trailing behind the direction of travel.
+  if (creature.isSpedUp && magnitude(velocity) > 5) {
+    const back = angle + Math.PI;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 200, 60, 0.7)";
+    ctx.lineWidth = 2;
+    for (const off of [-0.45, 0, 0.45]) {
+      const a = back + off;
+      const sx = Math.cos(a) * radius;
+      const sy = Math.sin(a) * radius;
+      const len = radius * (off === 0 ? 1.6 : 1.1);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(a) * len, sy + Math.sin(a) * len);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // Draw body
   switch (shape) {
     case "circle":
@@ -53,11 +103,55 @@ export function drawCreature(
   const eyeAngle = speed > 5 ? angle : creature.id * 0.5; // idle gaze
   drawEyes(ctx, radius, eyeAngle, shape === "triangle");
 
+  // Shield bubble: a pulsing translucent dome while the creature is invincible.
+  if (creature.isShielded) {
+    const pulse = 1 + Math.sin(time * 6 + creature.id) * 0.06;
+    const sr = (radius + 6) * pulse;
+    ctx.beginPath();
+    ctx.arc(0, 0, sr, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(60, 200, 255, 0.15)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(120, 220, 255, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Sword boost: a small red blade glint at the creature's shoulder.
+  if (creature.isArmed) {
+    const ox = radius * 0.75;
+    const oy = -radius * 0.75;
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.rotate(Math.PI / 4); // angle the blade like a drawn sword
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#f55";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -radius * 0.55);
+    ctx.lineTo(0, radius * 0.25);
+    ctx.stroke();
+    ctx.strokeStyle = "#fbb";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-radius * 0.22, radius * 0.12);
+    ctx.lineTo(radius * 0.22, radius * 0.12);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   ctx.restore();
 
-  // Health bar (only if damaged)
+  // Health bar (only if damaged). Width scales with body size so the boss's
+  // bar isn't a tiny sliver over its huge frame.
   if (creature.health < creature.maxHealth && creature.isAlive) {
-    drawHealthBar(ctx, x, y - radius - 8, creature.health / creature.maxHealth);
+    const barW = Math.max(24, radius * 1.4);
+    drawHealthBar(
+      ctx,
+      x,
+      y - radius - 8,
+      creature.health / creature.maxHealth,
+      barW,
+    );
   }
 
   ctx.globalAlpha = 1;
@@ -232,8 +326,8 @@ function drawHealthBar(
   x: number,
   y: number,
   ratio: number,
+  w = 24,
 ) {
-  const w = 24;
   const h = 3;
   ctx.fillStyle = "#400";
   ctx.fillRect(x - w / 2, y, w, h);

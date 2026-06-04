@@ -12,6 +12,7 @@ import {
 import { Entity, World, generateId } from "./entity";
 import { Food } from "./food";
 import { Heart } from "./heart";
+import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "./powerup";
 import type { Behaviour } from "../behaviours/behaviour";
 import { Navigator } from "../behaviours/navigator";
 
@@ -25,6 +26,13 @@ export type ShapeType =
 
 /** How long (ms) a provoked defender stays hostile after the last hit it takes. */
 const RETALIATION_MS = 2000;
+
+/**
+ * How much an Elite creature multiplies its base combat stats. Elites are rare
+ * (see the spawn roll in the panel), share their species' behaviour, and only
+ * differ by these juiced stats and the red pulsating aura the renderer draws.
+ */
+export const ELITE_STAT_MULTIPLIER = 10;
 
 export interface CreatureConfig {
   species: string;
@@ -43,6 +51,22 @@ export interface CreatureConfig {
   retaliation?: number;
   perceptionRadius: number;
   behaviour: Behaviour;
+  /**
+   * Allegiance group. Creatures sharing a non-empty faction are loyal to one
+   * another — they never deal contact damage to allies and won't hunt them.
+   * The default empty string means "no allegiance": every creature is a
+   * potential enemy (so e.g. two Spikers still fight each other).
+   */
+  faction?: string;
+  /**
+   * When true the creature never spends energy and never starves. Its energy
+   * stays pinned at full. Used by the boss, the first creature to have it.
+   */
+  infiniteEnergy?: boolean;
+  /** When false the creature passes straight through food (can't eat). Defaults true. */
+  canEatFood?: boolean;
+  /** When false the creature ignores all power-ups. Defaults true. */
+  canPickupPowerups?: boolean;
 }
 
 export class Creature implements Entity {
@@ -56,7 +80,8 @@ export class Creature implements Entity {
   accentColor: string;
   shape: ShapeType;
   radius: number;
-  maxSpeed: number;
+  /** Base top speed before any power-up boosts. `maxSpeed` applies the multiplier. */
+  baseMaxSpeed: number;
   health: number;
   maxHealth: number;
   energy: number;
@@ -65,12 +90,35 @@ export class Creature implements Entity {
   retaliation: number;
   perceptionRadius: number;
   behaviour: Behaviour;
+  faction: string;
+  infiniteEnergy: boolean;
+  canEatFood: boolean;
+  canPickupPowerups: boolean;
+
+  /**
+   * An Elite is a rare, super-charged variant of an ordinary creature: same
+   * behaviour, but ELITE_STAT_MULTIPLIER× the combat stats and a red pulsating
+   * aura. Set by makeElite() right after construction. Bosses and boss minions
+   * are never elite (the spawner refuses to promote them).
+   */
+  isElite = false;
 
   /**
    * Timestamp (performance.now) until which a retaliating creature stays
    * hostile. While provoked its `attackDamage` is its `retaliation` value.
    */
   private provokedUntil = 0;
+
+  /** Timestamp (performance.now) until which a shield power-up keeps this creature indestructible. */
+  private shieldedUntil = 0;
+
+  /** Timestamp (performance.now) until which a speed power-up is active, and its multiplier. */
+  private spedUpUntil = 0;
+  private speedBoost = 1;
+
+  /** Timestamp (performance.now) until which a sword power-up is active, and its damage multiplier. */
+  private armedUntil = 0;
+  private swordFactor = 1;
 
   /** Wall-aware navigation, used by behaviours that move toward or away from a target. */
   nav = new Navigator();
@@ -95,7 +143,7 @@ export class Creature implements Entity {
     this.accentColor = config.accentColor;
     this.shape = config.shape;
     this.radius = config.radius;
-    this.maxSpeed = config.maxSpeed;
+    this.baseMaxSpeed = config.maxSpeed;
     this.health = config.maxHealth;
     this.maxHealth = config.maxHealth;
     this.energy = config.maxEnergy;
@@ -104,7 +152,40 @@ export class Creature implements Entity {
     this.retaliation = config.retaliation ?? 0;
     this.perceptionRadius = config.perceptionRadius;
     this.behaviour = config.behaviour;
+    this.faction = config.faction ?? "";
+    this.infiniteEnergy = config.infiniteEnergy ?? false;
+    this.canEatFood = config.canEatFood ?? true;
+    this.canPickupPowerups = config.canPickupPowerups ?? true;
     this.spawnTime = performance.now();
+  }
+
+  /**
+   * Promote this creature to an Elite: ELITE_STAT_MULTIPLIER× its combat stats
+   * (health, energy, damage, retaliation) while keeping its behaviour, size and
+   * speed unchanged — physics and movement stay sane, and the red aura the
+   * renderer adds is what marks it out. Call once, right after construction and
+   * before the creature has taken any damage (health/energy are reset to the new
+   * maxima). Returns `this` for convenient chaining at the spawn site.
+   */
+  makeElite(): this {
+    this.isElite = true;
+    this.maxHealth *= ELITE_STAT_MULTIPLIER;
+    this.health = this.maxHealth;
+    this.maxEnergy *= ELITE_STAT_MULTIPLIER;
+    this.energy = this.maxEnergy;
+    this.damage *= ELITE_STAT_MULTIPLIER;
+    this.retaliation *= ELITE_STAT_MULTIPLIER;
+    return this;
+  }
+
+  /**
+   * True if `other` is a loyal ally: both share the same non-empty faction.
+   * Allies never damage one another and won't hunt each other. An empty
+   * faction means "no allegiance", so it's allied with nobody (not even other
+   * factionless creatures) — preserving every-creature-for-itself by default.
+   */
+  alliedWith(other: Creature): boolean {
+    return this.faction !== "" && this.faction === other.faction;
   }
 
   /** True while a retaliating creature is still fighting back after a hit. */
@@ -131,7 +212,56 @@ export class Creature implements Entity {
    * <=0 heals from plant food (herbivore-like).
    */
   get attackDamage(): number {
-    return this.isProvoked ? this.retaliation : this.damage;
+    const base = this.isProvoked ? this.retaliation : this.damage;
+    return this.isArmed ? base * this.swordFactor : base;
+  }
+
+  /** True while a sword power-up is boosting this creature's contact damage. */
+  get isArmed(): boolean {
+    return performance.now() < this.armedUntil;
+  }
+
+  /** Only fighters (predators/aggressors/retaliators) can wield a sword. */
+  get canWieldSword(): boolean {
+    return this.damage > 0 || this.retaliation > 0;
+  }
+
+  /** Grant (or refresh) a sword boost of `multiplier`× damage for `durationMs`. */
+  applySword(multiplier: number, durationMs: number) {
+    this.swordFactor = multiplier;
+    this.armedUntil = performance.now() + durationMs;
+  }
+
+  /** True while a shield power-up is active: takes no damage and drains no energy. */
+  get isShielded(): boolean {
+    return performance.now() < this.shieldedUntil;
+  }
+
+  /** Grant (or refresh) a shield lasting `durationMs`. */
+  applyShield(durationMs: number) {
+    this.shieldedUntil = performance.now() + durationMs;
+  }
+
+  /** True while a speed power-up is active. */
+  get isSpedUp(): boolean {
+    return performance.now() < this.spedUpUntil;
+  }
+
+  /**
+   * Effective top speed: the base speed scaled by an active speed power-up.
+   * Everything that moves the creature (behaviours, navigator, the velocity
+   * limit) reads this, so the boost applies uniformly.
+   */
+  get maxSpeed(): number {
+    return this.isSpedUp
+      ? this.baseMaxSpeed * this.speedBoost
+      : this.baseMaxSpeed;
+  }
+
+  /** Grant (or refresh) a speed boost of `multiplier`× for `durationMs`. */
+  applySpeed(multiplier: number, durationMs: number) {
+    this.speedBoost = multiplier;
+    this.spedUpUntil = performance.now() + durationMs;
   }
 
   update(dt: number, world: World) {
@@ -139,7 +269,14 @@ export class Creature implements Entity {
 
     const nearby = world.getNearby(this.position, this.perceptionRadius);
     this.steerTarget = null; // behaviours set this via the navigator if they seek
-    const desired = this.behaviour.decide(this, nearby, world);
+    // Combat reflexes override the base behaviour, in priority order:
+    //   1. retaliate — a provoked creature charges whoever just hit it;
+    //   2. assist — a faction fighter rushes to help an ally under attack.
+    // Both fall through to the creature's normal behaviour when neither applies.
+    const desired =
+      this.retaliationDrive(nearby, world) ??
+      this.assistAllyDrive(nearby, world) ??
+      this.behaviour.decide(this, nearby, world);
     const steered = this.avoidWalls(desired, world);
     this.velocity = limit(
       lerp(this.velocity, steered, Math.min(1, dt * 8)),
@@ -185,11 +322,14 @@ export class Creature implements Entity {
       this.position = resolved;
     }
 
-    // Energy drain
-    this.energy -= dt * 0.4;
-    if (this.energy <= 0) {
-      this.energy = 0;
-      this.health -= dt * 10;
+    // Energy drain (a shielded creature is sustained — no drain, no starvation;
+    // an infinite-energy creature never spends or starves either).
+    if (!this.isShielded && !this.infiniteEnergy) {
+      this.energy -= dt * 0.4;
+      if (this.energy <= 0) {
+        this.energy = 0;
+        this.health -= dt * 10;
+      }
     }
 
     // Interactions with nearby entities
@@ -197,8 +337,8 @@ export class Creature implements Entity {
       if (e === this || !e.isAlive) continue;
       const d = distance(this.position, e.position);
 
-      // Eat food
-      if (e instanceof Food && d < this.radius + e.radius) {
+      // Eat food (some creatures, like the boss, can't feed and pass through it)
+      if (e instanceof Food && this.canEatFood && d < this.radius + e.radius) {
         e.isAlive = false;
         this.energy = Math.min(this.maxEnergy, this.energy + e.nutrition);
         // Carnivores (attackDamage > 0) draw only energy from plant food — no
@@ -215,6 +355,39 @@ export class Creature implements Entity {
         this.health = Math.min(this.maxHealth, this.health + e.healing);
       }
 
+      // Grab a shield power-up to become indestructible for a while.
+      if (
+        e instanceof ShieldPowerup &&
+        this.canPickupPowerups &&
+        d < this.radius + e.radius
+      ) {
+        e.isAlive = false;
+        this.applyShield(e.duration);
+      }
+
+      // Grab a speed power-up to move faster for a while.
+      if (
+        e instanceof SpeedPowerup &&
+        this.canPickupPowerups &&
+        d < this.radius + e.radius
+      ) {
+        e.isAlive = false;
+        this.applySpeed(e.multiplier, e.duration);
+      }
+
+      // Grab a sword power-up for boosted damage — but only fighters can wield
+      // one; everyone else passes straight through it (and some, like the boss,
+      // can't pick up any power-up at all).
+      if (
+        e instanceof SwordPowerup &&
+        this.canPickupPowerups &&
+        this.canWieldSword &&
+        d < this.radius + e.radius
+      ) {
+        e.isAlive = false;
+        this.applySword(e.multiplier, e.duration);
+      }
+
       // Creature collision
       if (e instanceof Creature && d < this.radius + e.radius && d > 0) {
         // Push apart
@@ -223,8 +396,11 @@ export class Creature implements Entity {
         this.position = add(this.position, scale(pushDir, overlap));
         e.position = add(e.position, scale(pushDir, -overlap));
 
-        // Damage if aggressive/predator (or a provoked defender fighting back)
-        if (this.attackDamage > 0) {
+        // Damage if aggressive/predator (or a provoked defender fighting back).
+        // A shielded target shrugs it off entirely — no damage, no retaliation
+        // trigger. Loyal allies (same faction) never hurt each other, so the
+        // boss and its spawned spikers can pile together harmlessly.
+        if (this.attackDamage > 0 && !e.isShielded && !this.alliedWith(e)) {
           const wasAlive = e.health > 0;
           e.health -= this.attackDamage * dt;
           // Whatever we just hit fights back if it's a retaliating species.
@@ -233,8 +409,10 @@ export class Creature implements Entity {
           // its own collision check).
           e.provoke();
           // Landing the killing blow lets a carnivore feed on the prey,
-          // healing it 4x what a normal piece of food (25) would.
-          if (wasAlive && e.health <= 0) {
+          // healing it 4x what a normal piece of food (25) would. Creatures
+          // that can't eat (the boss) gain nothing from a kill — they heal only
+          // from hearts, so they aren't effectively indestructible.
+          if (wasAlive && e.health <= 0 && this.canEatFood) {
             this.health = Math.min(this.maxHealth, this.health + 100);
           }
         }
@@ -246,6 +424,84 @@ export class Creature implements Entity {
       this.isAlive = false;
       this.deathTime = performance.now();
     }
+  }
+
+  /**
+   * Universal "fight back when struck" drive. A creature with retaliation > 0
+   * that has been provoked (hit recently) charges its nearest dangerous,
+   * non-allied attacker — exactly how the Defender behaves, but available to
+   * every species (e.g. a Crawler with retaliation set). Returns steering
+   * toward that attacker, or null when the creature isn't currently retaliating
+   * so its normal behaviour takes over.
+   */
+  private retaliationDrive(nearby: Entity[], world: World): Vec2 | null {
+    if (!this.isProvoked) return null; // isProvoked already implies retaliation > 0
+
+    let threat: Creature | null = null;
+    let threatDist = Infinity;
+    for (const e of nearby) {
+      if (e === this || !e.isAlive) continue;
+      if (!(e instanceof Creature)) continue;
+      if (e.damage <= 0) continue; // only genuinely dangerous attackers
+      if (this.alliedWith(e)) continue; // never turn on a loyal ally
+      const d = distance(this.position, e.position);
+      if (d < threatDist) {
+        threatDist = d;
+        threat = e;
+      }
+    }
+
+    if (!threat) return null;
+    this.lastActivity = `Fighting back against ${threat.species}`;
+    return this.nav.seek(this, threat.position, world);
+  }
+
+  /**
+   * Faction teamwork: a combat-capable creature charges the nearest enemy that
+   * is menacing one of its faction allies, so members come to each other's aid
+   * (and defend their own spawner). Returns steering toward that enemy, or null
+   * when there's no ally to help. Skipped for the factionless (every creature
+   * for itself), for non-fighters (no damage and no retaliation to contribute),
+   * and for the boss, which runs its own combat script (fireballs/summons) and
+   * shouldn't be pulled off it.
+   */
+  private assistAllyDrive(nearby: Entity[], world: World): Vec2 | null {
+    if (this.faction === "") return null;
+    if (this.damage <= 0 && this.retaliation <= 0) return null;
+    if (this.infiniteEnergy) return null; // the boss isn't a follower
+
+    let enemy: Creature | null = null;
+    let enemyDist = Infinity;
+    for (const e of nearby) {
+      if (e === this || !e.isAlive || !(e instanceof Creature)) continue;
+      if (e.damage <= 0 || this.alliedWith(e)) continue; // not a hostile attacker
+
+      // Only pitch in when this enemy is right on top of one of our allies.
+      let menacingAlly = false;
+      for (const a of nearby) {
+        if (a === this || a === e || !a.isAlive || !(a instanceof Creature)) {
+          continue;
+        }
+        if (!this.alliedWith(a)) continue;
+        if (distance(a.position, e.position) < a.radius + e.radius + 30) {
+          menacingAlly = true;
+          break;
+        }
+      }
+      if (!menacingAlly) continue;
+
+      const d = distance(this.position, e.position);
+      if (d < enemyDist) {
+        enemyDist = d;
+        enemy = e;
+      }
+    }
+
+    if (!enemy) return null;
+    // Arm retaliators (e.g. a Defender) so joining the fight actually lands hits.
+    this.provoke();
+    this.lastActivity = `Helping against ${enemy.species}`;
+    return this.nav.seek(this, enemy.position, world);
   }
 
   // Remembered turn direction so the creature rounds a wall consistently

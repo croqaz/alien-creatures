@@ -32,11 +32,25 @@ export class Tooltip {
       this.el.style.display = "block";
       this.el.style.left = `${mouseScreenX + 14}px`;
       this.el.style.top = `${mouseScreenY + 14}px`;
+      const badges: string[] = [];
+      if (closest.isShielded)
+        badges.push(`<span style="color:#6cf">🛡 Shielded</span>`);
+      if (closest.isSpedUp)
+        badges.push(`<span style="color:#fc3">⚡ Fast</span>`);
+      if (closest.isArmed)
+        badges.push(`<span style="color:#f66">⚔ Armed</span>`);
+      const status = badges.length ? `<br>${badges.join(" &nbsp; ")}` : "";
+      const energy = closest.infiniteEnergy
+        ? "∞"
+        : `${Math.ceil(closest.energy)}/${closest.maxEnergy}`;
+      const eliteTag = closest.isElite
+        ? ` <span style="color:#f33">★ Elite</span>`
+        : "";
       this.el.innerHTML = `
-        <strong style="color:${closest.color}">${closest.species}</strong><br>
+        <strong style="color:${closest.color}">${closest.species}</strong>${eliteTag}<br>
         HP: ${Math.ceil(closest.health)}/${closest.maxHealth}<br>
-        Energy: ${Math.ceil(closest.energy)}/${closest.maxEnergy}<br>
-        Doing: ${closest.lastActivity}
+        Energy: ${energy}<br>
+        Doing: ${closest.lastActivity}${status}
       `;
     } else {
       this.el.style.display = "none";

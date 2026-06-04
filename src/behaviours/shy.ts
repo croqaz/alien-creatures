@@ -2,7 +2,11 @@ import { Vec2, vec, sub, normalize, scale, add, distance } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
-import { seekFoodIfHungry, seekHealingIfHurt } from "./survival";
+import {
+  seekFoodIfHungry,
+  seekHealingIfHurt,
+  fireballDodgeForce,
+} from "./survival";
 
 export class ShyBehaviour implements Behaviour {
   readonly name = "Shy";
@@ -24,6 +28,13 @@ export class ShyBehaviour implements Behaviour {
         fleeForce = add(fleeForce, scale(away, urgency));
         threats++;
       }
+    }
+
+    // Incoming fireballs are read as a threat too — bolt away from them.
+    const dodge = fireballDodgeForce(creature, nearby);
+    if (dodge.x !== 0 || dodge.y !== 0) {
+      fleeForce = add(fleeForce, dodge);
+      threats++;
     }
 
     if (threats > 0) {

@@ -11,12 +11,14 @@
     #game.panning { cursor: grabbing; }
     #game.deleting { cursor: crosshair; }
     #game.building { cursor: cell; }
+    #game.placing { cursor: copy; }
 
     #ui-panel {
       position: absolute; top: 12px; left: 12px;
       background: rgba(20, 20, 30, 0.92); color: #ddd;
       padding: 14px 16px; border-radius: 10px;
-      min-width: 210px; font-size: 13px;
+      width: 280px; font-size: 13px;
+      max-height: calc(100% - 24px); overflow-y: auto;
       box-shadow: 0 2px 16px rgba(0,0,0,0.5);
       user-select: none; z-index: 10;
       display: flex; flex-direction: column; gap: 10px;
@@ -24,17 +26,28 @@
     #ui-panel h2 { font-size: 15px; color: #b8f; margin: 0; letter-spacing: 0.5px; }
     #ui-panel label { font-size: 12px; color: #aaa; }
     #ui-panel select, #ui-panel button {
-      width: 100%; padding: 6px 8px; border: 1px solid #444;
+      width: 100%; max-width: 100%; padding: 6px 8px; border: 1px solid #444;
       border-radius: 5px; background: #222; color: #eee;
       font-size: 13px; cursor: pointer;
+      text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
     }
     #ui-panel button:hover { background: #333; }
     #ui-panel button.active { background: #633; border-color: #a55; }
+    #ui-panel input[type="range"] { width: 100%; cursor: pointer; accent-color: #b8f; }
+    #ui-panel label span { color: #ccc; font-weight: 600; }
     #ui-panel .stats { font-size: 11px; color: #888; line-height: 1.5; }
     #ui-panel .divider { border-top: 1px solid #333; }
     #ui-panel .speed-controls { display: flex; gap: 4px; }
     #ui-panel .speed-controls button { width: auto; flex: 1; padding: 4px; font-size: 11px; }
     #ui-panel .speed-controls button.active { background: #346; border-color: #58a; }
+
+    /* Tab bar: switch between the Creatures and Objects spawn panels. */
+    #ui-panel .tabs { display: flex; gap: 4px; }
+    #ui-panel .tabs button { flex: 1; padding: 7px 4px; font-size: 13px; font-weight: 600; }
+    #ui-panel .tabs button.active { background: #423a5e; border-color: #7a6cb0; color: #fff; }
+    /* A tab panel groups the controls for the currently selected tab. */
+    #ui-panel .tab-panel { display: flex; flex-direction: column; gap: 10px; }
+    #ui-panel .tab-panel[hidden] { display: none; }
 
     #tooltip {
       position: absolute; pointer-events: none;
@@ -51,21 +64,61 @@
 
   <div id="ui-panel">
     <h2>Alien Creatures</h2>
-    <div class="divider"></div>
 
-    <label>Species</label>
-    <select id="species-select"></select>
-    <button id="spawn-creature-btn">Spawn Creature</button>
-    <button id="spawn-creature-10-btn">Spawn Creature (10)</button>
-    <button id="spawn-food-btn">Spawn Food (10)</button>
-    <button id="spawn-food-100-btn">Spawn Food (100)</button>
+    <div class="tabs">
+      <button id="tab-creatures" class="active">Creatures</button>
+      <button id="tab-objects">Objects</button>
+    </div>
+
+    <!-- Creatures tab: pick a species, batch-spawn at random, or Place by click. -->
+    <div id="panel-creatures" class="tab-panel">
+      <label>Species</label>
+      <select id="species-select"></select>
+
+      <label>Creatures to spawn: <span id="creature-count-val">10</span></label>
+      <input type="range" id="creature-count" min="1" max="100" value="10" />
+      <button id="spawn-creature-btn">Spawn Creatures</button>
+    </div>
+
+    <!-- Objects tab: batch-spawn food/hearts, and choose what Place drops. -->
+    <div id="panel-objects" class="tab-panel" hidden>
+      <label>Food to spawn: <span id="food-count-val">10</span></label>
+      <input type="range" id="food-count" min="1" max="100" value="10" />
+      <button id="spawn-food-btn">Spawn Food</button>
+
+      <label>Hearts to spawn: <span id="heart-count-val">10</span></label>
+      <input type="range" id="heart-count" min="1" max="100" value="10" />
+      <button id="spawn-heart-btn">Spawn Hearts</button>
+
+      <label>Object to place</label>
+      <select id="object-select">
+        <option value="wall">Wall</option>
+        <option value="shield">Shield power-up</option>
+        <option value="speed">Speed power-up</option>
+        <option value="sword">Sword power-up</option>
+        <option value="spawner">Creature Spawner</option>
+      </select>
+
+      <!-- Shown only when "Creature Spawner" is the chosen object: picks which
+           creature the placed tower emits, and how fast. -->
+      <div id="spawner-config" hidden>
+        <label>Spawner to place</label>
+        <select id="spawner-select"></select>
+
+        <label>Spawner speed: <span id="spawner-speed-val">3</span> /s</label>
+        <input type="range" id="spawner-speed" min="1" max="10" value="3" />
+      </div>
+    </div>
 
     <div class="divider"></div>
-    <button id="wall-mode-btn">Walls Mode: OFF</button>
+    <!-- Map tools, always available regardless of the active tab. Place drops
+         the active tab's current selection (a creature or an object) where you
+         click; Delete removes whatever you click. -->
+    <button id="place-mode-btn">Place Creature: OFF</button>
     <button id="delete-mode-btn">Delete Mode: OFF</button>
 
     <div class="divider"></div>
-    <label>Sim Speed</label>
+    <label>Sim Speed <span style="color:#777">(Space = pause)</span></label>
     <div class="speed-controls">
       <button data-speed="0">⏸</button>
       <button data-speed="1" class="active">1×</button>
