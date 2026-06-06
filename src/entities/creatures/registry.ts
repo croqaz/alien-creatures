@@ -184,7 +184,7 @@ const speciesList: SpeciesDef[] = [
     description:
       "Loyal minion of the boss — fast, aggressive, attacks all outsiders",
     create: createVoidSpiker,
-    canBeElite: false, // boss minion — never an elite
+    canBeElite: true, // boss minion
   },
   {
     name: "Voidspike Boss",
@@ -198,10 +198,10 @@ const speciesList: SpeciesDef[] = [
         shape: "spiked",
         radius: 160, // 10× a Blob
         maxSpeed: 55,
-        maxHealth: 15000,
+        maxHealth: 19000,
         maxEnergy: Infinity,
         infiniteEnergy: true,
-        damage: 105,
+        damage: 125,
         perceptionRadius: 900,
         behaviour: new BossBehaviour(),
         faction: VOID_FACTION,

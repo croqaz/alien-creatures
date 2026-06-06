@@ -8,7 +8,10 @@ export class Input {
   private isPainting = false;
   private lastMouse: Vec2 = vec(0, 0);
   mouse: Vec2 = vec(0, 0);
+  /** Fired on left press and on every left-drag move (paint/grab/move). */
   onClick: ClickHandler | null = null;
+  /** Fired once when a left press/drag ends, so tools can finish a gesture (e.g. drop a dragged creature). */
+  onRelease: ClickHandler | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -49,7 +52,12 @@ export class Input {
     }
   };
 
-  private onMouseUp = (_e: MouseEvent) => {
+  private onMouseUp = (e: MouseEvent) => {
+    // A left press/drag is ending: let the active tool finish its gesture
+    // (Move uses this to drop the creature it was dragging).
+    if (this.isPainting && this.onRelease) {
+      this.onRelease(this.camera.screenToWorld(vec(e.clientX, e.clientY)));
+    }
     this.isPanning = false;
     this.isPainting = false;
     this.canvas.classList.remove("panning");

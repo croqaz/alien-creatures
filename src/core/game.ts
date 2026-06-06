@@ -16,6 +16,8 @@ export class Game implements World {
   walls = new WallGrid();
   simSpeed = 1;
   time = 0;
+  /** Creature highlighted by the Select tool; drawn with a ring. Cleared on death. */
+  selected: Creature | null = null;
 
   /** Entities queued during an update pass, merged in once the pass finishes. */
   private pending: Entity[] = [];
@@ -107,8 +109,16 @@ export class Game implements World {
       return false;
     });
 
+    // Drop a selection that has since died, so we never ring a corpse.
+    if (this.selected && !this.selected.isAlive) this.selected = null;
+
     // Render
-    this.renderer.render(this.entities, this.walls.all(), this.time);
+    this.renderer.render(
+      this.entities,
+      this.walls.all(),
+      this.time,
+      this.selected,
+    );
 
     // Stats update every 0.5s
     this.statsTimer += dt;

@@ -27,7 +27,12 @@ export class Renderer {
     private arena: Arena,
   ) {}
 
-  render(entities: Entity[], walls: Wall[], time: number) {
+  render(
+    entities: Entity[],
+    walls: Wall[],
+    time: number,
+    selected: Creature | null = null,
+  ) {
     const { ctx, canvas, camera } = this;
 
     // Resize canvas to viewport
@@ -105,6 +110,21 @@ export class Renderer {
     for (const c of creatures) drawCreature(ctx, c, time);
     // Fireballs draw on top of everything so they read as active projectiles.
     for (const fb of fireballs) drawFireball(ctx, fb, time);
+
+    // Selection ring: a pulsing dashed circle around the Select tool's pick.
+    if (selected && selected.isAlive) {
+      const r = selected.radius + 7;
+      ctx.save();
+      ctx.translate(selected.position.x, selected.position.y);
+      ctx.rotate(time * 1.5);
+      ctx.strokeStyle = "#ffe066";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // Reset transform
     ctx.setTransform(1, 0, 0, 1, 0, 0);

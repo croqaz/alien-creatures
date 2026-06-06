@@ -17,13 +17,21 @@ import { Vec2, randomInRect, distance } from "../utils/vec2";
 type Tab = "creatures" | "objects";
 /** The placeable object kinds offered in the Objects tab's selector. */
 type ObjectKind = "wall" | "shield" | "speed" | "sword" | "spawner";
+/**
+ * The active map-click tool. Exactly one is active at a time:
+ *  - select: highlight/inspect the creature under the cursor
+ *  - place:  drop the active tab's current selection where you click
+ *  - move:   grab a creature and drag-and-drop it
+ *  - delete: remove whatever you click
+ */
+type Mode = "select" | "place" | "move" | "delete";
 
 export class Panel {
   private activeTab: Tab = "creatures";
-  /** When on, a left-click drops the active tab's current selection. */
-  private placeMode = false;
-  /** When on, a left-click removes whatever is under the cursor. */
-  private deleteMode = false;
+  /** The active map-click tool; defaults to the harmless Select. */
+  private mode: Mode = "select";
+  /** The creature currently being dragged by the Move tool, if any. */
+  private grabbed: Creature | null = null;
   /** Last non-zero sim speed, restored when un-pausing with Space. */
   private prevSpeed = 1;
 
@@ -203,6 +211,44 @@ export class Panel {
     }
   }
 
+  /** The living creature the cursor is over (closest within its body), or null. */
+  private creatureAt(worldPos: Vec2): Creature | null {
+    let closest: Creature | null = null;
+    let closestDist = Infinity;
+    for (const e of this.game.entities) {
+      if (!(e instanceof Creature) || !e.isAlive) continue;
+      const d = distance(worldPos, e.position);
+      if (d < e.radius + 5 && d < closestDist) {
+        closest = e;
+        closestDist = d;
+      }
+    }
+    return closest;
+  }
+
+  /** Select tool: highlight the creature under the cursor (or clear on empty space). */
+  private selectAt(worldPos: Vec2) {
+    this.game.selected = this.creatureAt(worldPos);
+  }
+
+  /**
+   * Move tool: on the first click of a drag, grab the creature under the cursor;
+   * every subsequent drag event teleports the grabbed creature to follow the
+   * mouse, with its momentum zeroed so it stays put rather than flinging off.
+   */
+  private moveAt(worldPos: Vec2) {
+    if (!this.grabbed) {
+      this.grabbed = this.creatureAt(worldPos);
+      // Surface the grabbed creature in the selection ring too.
+      if (this.grabbed) this.game.selected = this.grabbed;
+      return;
+    }
+    this.grabbed.position = { ...worldPos };
+    this.grabbed.velocity = { x: 0, y: 0 };
+    // Drop any in-progress steering so the behaviour re-plans from the new spot.
+    this.grabbed.steerTarget = null;
+  }
+
   private populateSpeciesSelect() {
     for (const species of getSpeciesList()) {
       const opt = document.createElement("option");
@@ -253,34 +299,44 @@ export class Panel {
       "heart-count",
     ) as HTMLInputElement;
     const heartCountVal = document.getElementById("heart-count-val")!;
+    const selectModeBtn = document.getElementById("select-mode-btn")!;
     const placeModeBtn = document.getElementById("place-mode-btn")!;
+    const moveModeBtn = document.getElementById("move-mode-btn")!;
     const deleteModeBtn = document.getElementById("delete-mode-btn")!;
     const spawnerConfig = document.getElementById("spawner-config")!;
     const spawnerSpeedVal = document.getElementById("spawner-speed-val")!;
     const canvas = document.getElementById("game") as HTMLCanvasElement;
 
     const refreshModeButtons = () => {
+      // The Place button names what it'll drop, following the active tab.
       const placeNoun = this.activeTab === "creatures" ? "Creature" : "Object";
-      placeModeBtn.textContent = `Place ${placeNoun}: ${this.placeMode ? "ON" : "OFF"}`;
-      placeModeBtn.classList.toggle("active", this.placeMode);
-      deleteModeBtn.textContent = `Delete Mode: ${this.deleteMode ? "ON" : "OFF"}`;
-      deleteModeBtn.classList.toggle("active", this.deleteMode);
+      placeModeBtn.textContent = `Place ${placeNoun}`;
 
-      // Cursor feedback: a crosshair for delete, a "cell" cursor while painting
-      // walls, and the copy cursor for every other placement.
+      // Light up exactly the active tool; the rest are exclusive with it.
+      selectModeBtn.classList.toggle("active", this.mode === "select");
+      placeModeBtn.classList.toggle("active", this.mode === "place");
+      moveModeBtn.classList.toggle("active", this.mode === "move");
+      deleteModeBtn.classList.toggle("active", this.mode === "delete");
+
+      // Cursor feedback per tool: crosshair to delete, the "cell" cursor while
+      // painting walls, copy for other placements, a move cursor for drag, and
+      // a pointer for select.
       const placingWall =
-        this.placeMode &&
+        this.mode === "place" &&
         this.activeTab === "objects" &&
         this.objectSelect.value === "wall";
-      canvas.classList.toggle("deleting", this.deleteMode);
+      canvas.classList.toggle("deleting", this.mode === "delete");
       canvas.classList.toggle("building", placingWall);
-      canvas.classList.toggle("placing", this.placeMode && !placingWall);
+      canvas.classList.toggle("placing", this.mode === "place" && !placingWall);
+      canvas.classList.toggle("moving", this.mode === "move");
+      canvas.classList.toggle("selecting", this.mode === "select");
     };
 
-    // Place and Delete are mutually exclusive map-click modes.
-    const setMode = (mode: "place" | "delete" | "none") => {
-      this.placeMode = mode === "place";
-      this.deleteMode = mode === "delete";
+    // The four map-click tools are mutually exclusive — picking one drops any
+    // in-progress drag from the Move tool.
+    const setMode = (mode: Mode) => {
+      this.mode = mode;
+      this.grabbed = null;
       refreshModeButtons();
     };
 
@@ -333,11 +389,17 @@ export class Panel {
       }
     });
 
+    // Each tool button selects its mode; clicking the active non-default tool
+    // again falls back to Select (the harmless default).
+    selectModeBtn.addEventListener("click", () => setMode("select"));
     placeModeBtn.addEventListener("click", () =>
-      setMode(this.placeMode ? "none" : "place"),
+      setMode(this.mode === "place" ? "select" : "place"),
+    );
+    moveModeBtn.addEventListener("click", () =>
+      setMode(this.mode === "move" ? "select" : "move"),
     );
     deleteModeBtn.addEventListener("click", () =>
-      setMode(this.deleteMode ? "none" : "delete"),
+      setMode(this.mode === "delete" ? "select" : "delete"),
     );
 
     // The spawner config (creature + rate) is only relevant when the chosen
@@ -359,12 +421,26 @@ export class Panel {
 
     // Single left-click/drag handler dispatches to the active map tool.
     this.game.input.onClick = (worldPos: Vec2) => {
-      if (this.deleteMode) {
-        this.deleteAt(worldPos);
-      } else if (this.placeMode) {
-        if (this.activeTab === "creatures") this.placeCreatureAt(worldPos);
-        else this.placeObjectAt(worldPos);
+      switch (this.mode) {
+        case "select":
+          this.selectAt(worldPos);
+          break;
+        case "place":
+          if (this.activeTab === "creatures") this.placeCreatureAt(worldPos);
+          else this.placeObjectAt(worldPos);
+          break;
+        case "move":
+          this.moveAt(worldPos);
+          break;
+        case "delete":
+          this.deleteAt(worldPos);
+          break;
       }
+    };
+
+    // Releasing the mouse ends a Move drag, dropping the carried creature.
+    this.game.input.onRelease = () => {
+      this.grabbed = null;
     };
 
     refreshModeButtons();

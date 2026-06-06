@@ -12,6 +12,8 @@
     #game.deleting { cursor: crosshair; }
     #game.building { cursor: cell; }
     #game.placing { cursor: copy; }
+    #game.selecting { cursor: pointer; }
+    #game.moving { cursor: move; }
 
     #ui-panel {
       position: absolute; top: 12px; left: 12px;
@@ -40,6 +42,11 @@
     #ui-panel .speed-controls { display: flex; gap: 4px; }
     #ui-panel .speed-controls button { width: auto; flex: 1; padding: 4px; font-size: 11px; }
     #ui-panel .speed-controls button.active { background: #346; border-color: #58a; }
+
+    /* Tool picker: four exclusive map-click modes in a 2×2 grid. */
+    #ui-panel .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    #ui-panel .tools button { width: auto; font-weight: 600; }
+    #ui-panel .tools button.active { background: #2a5a3a; border-color: #5a9; color: #fff; }
 
     /* Tab bar: switch between the Creatures and Objects spawn panels. */
     #ui-panel .tabs { display: flex; gap: 4px; }
@@ -111,11 +118,17 @@
     </div>
 
     <div class="divider"></div>
-    <!-- Map tools, always available regardless of the active tab. Place drops
-         the active tab's current selection (a creature or an object) where you
-         click; Delete removes whatever you click. -->
-    <button id="place-mode-btn">Place Creature: OFF</button>
-    <button id="delete-mode-btn">Delete Mode: OFF</button>
+    <!-- Map tools: four mutually-exclusive click modes, always available
+         regardless of the active tab. Select inspects/highlights a creature;
+         Place drops the active tab's current selection where you click; Move
+         drags a creature with the mouse; Delete removes whatever you click. -->
+    <label>Tool</label>
+    <div class="tools">
+      <button id="select-mode-btn" class="active">Select</button>
+      <button id="place-mode-btn">Place</button>
+      <button id="move-mode-btn">Move</button>
+      <button id="delete-mode-btn">Delete</button>
+    </div>
 
     <div class="divider"></div>
     <label>Sim Speed <span style="color:#777">(Space = pause)</span></label>
