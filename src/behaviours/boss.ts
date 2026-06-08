@@ -3,10 +3,7 @@ import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
 import { Fireball } from "../entities/fireball";
-import {
-  createVoidSpiker,
-  VOID_FACTION,
-} from "../entities/creatures/void-spiker";
+import { createVoidSpiker, VOID_FACTION } from "../entities/creatures/registry";
 
 // Ranged attack tuning.
 const FIREBALL_DAMAGE = 95;

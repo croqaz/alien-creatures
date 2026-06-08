@@ -2,7 +2,7 @@ import type { Game } from "../core/game";
 import {
   getSpeciesList,
   getSpecies,
-  createWithElite,
+  createWithVariant,
   type SpeciesDef,
 } from "../entities/creatures/registry";
 import { Food } from "../entities/food";
@@ -66,13 +66,13 @@ export class Panel {
   }
 
   /**
-   * Build a creature of `species` at `pos`, applying the rare automatic Elite
-   * promotion. Shared by the batch "Spawn Creatures" button and click-to-place
-   * so both routes can produce elites identically — and neither lets the GUI
-   * promote a boss or boss minion (canBeElite === false).
+   * Build a creature of `species` at `pos`, applying the rare automatic Elite /
+   * Archer promotions. Shared by the batch "Spawn Creatures" button and
+   * click-to-place so both routes produce variants identically — and neither
+   * lets the GUI promote a species that opts out (e.g. bosses).
    */
   private makeCreature(species: SpeciesDef, pos: Vec2): Creature {
-    return createWithElite(species, pos);
+    return createWithVariant(species, pos);
   }
 
   /**

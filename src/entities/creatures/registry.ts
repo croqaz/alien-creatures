@@ -9,7 +9,6 @@ import { DefenderBehaviour } from "../../behaviours/defender";
 import { BossBehaviour } from "../../behaviours/boss";
 import { ChargerBehaviour, TELEPORT_RANGE } from "../../behaviours/charger";
 import { CatapultBehaviour } from "../../behaviours/catapult";
-import { createVoidSpiker, VOID_FACTION } from "./void-spiker";
 
 /**
  * Allegiance groups shared across species (see `Creature.faction`). Members of
@@ -20,6 +19,9 @@ import { createVoidSpiker, VOID_FACTION } from "./void-spiker";
  */
 export const PREDATOR_FACTION = "predator";
 export const PEACEFUL_FACTION = "peaceful";
+/** Shared allegiance of the bosses and everything they summon. Members never
+ * harm one another; everyone outside the faction is fair game. */
+export const VOID_FACTION = "void";
 
 export interface SpeciesDef {
   name: string;
@@ -30,6 +32,12 @@ export interface SpeciesDef {
    * Bosses and boss minions opt out — they're already special and never elite.
    */
   canBeElite?: boolean;
+  /**
+   * Whether this species can spawn as a rare Archer variant. Defaults to true,
+   * but only creatures that can actually fight (deal damage or retaliate) ever
+   * become archers. Bosses opt out — they have their own attacks.
+   */
+  canBeArcher?: boolean;
   /**
    * Whether a Creature Spawner tower may produce this species. Defaults to true.
    * Bosses opt out — they're one-of-a-kind, not something a tower churns out.
@@ -45,17 +53,58 @@ export interface SpeciesDef {
 export const ELITE_SPAWN_CHANCE = 1 / 20;
 
 /**
- * Build a creature of `species` at `position`, applying the rare automatic
- * Elite promotion. Shared by every spawn route (panel buttons, click-to-place,
- * and Creature Spawner towers) so elites arise identically everywhere — and
- * never for a species that opts out via canBeElite === false.
+ * Probability that an eligible spawn comes out as an Archer — roughly "once
+ * every 5 spawns". A creature is at most one of Elite or Archer (Elite is rarer
+ * and wins the roll), and only fighters (damage or retaliation > 0) qualify.
  */
-export function createWithElite(species: SpeciesDef, position: Vec2): Creature {
+export const ARCHER_SPAWN_CHANCE = 1 / 5;
+
+/**
+ * Build a creature of `species` at `position`, applying the rare automatic
+ * variant promotions. Shared by every spawn route (panel buttons, click-to-place,
+ * and Creature Spawner towers) so variants arise identically everywhere. A
+ * creature can be Elite or Archer but never both: the rarer Elite roll comes
+ * first, and only if it misses does the Archer roll get a chance. Species opt
+ * out via canBeElite === false / canBeArcher === false.
+ */
+export function createWithVariant(
+  species: SpeciesDef,
+  position: Vec2,
+): Creature {
   const creature = species.create(position);
   if (species.canBeElite !== false && Math.random() < ELITE_SPAWN_CHANCE) {
     creature.makeElite();
+  } else if (
+    species.canBeArcher !== false &&
+    creature.canWieldSword && // only genuine fighters take up the bow
+    Math.random() < ARCHER_SPAWN_CHANCE
+  ) {
+    creature.makeArcher();
   }
   return creature;
+}
+
+/**
+ * A Void Spiker: the boss's loyal minion — a fast, aggressive black spiker that
+ * attacks every creature outside the void faction. Exposed as a standalone
+ * factory (as well as the registry entry below) so the boss behaviour can summon
+ * them mid-fight without routing through the variant-roll spawn path.
+ */
+export function createVoidSpiker(pos: Vec2): Creature {
+  return new Creature(pos, {
+    species: "Void Spiker",
+    color: "#16161f",
+    accentColor: "#a33",
+    shape: "spiked",
+    radius: 15,
+    maxSpeed: 95,
+    maxHealth: 120,
+    maxEnergy: 100,
+    damage: 30,
+    perceptionRadius: 300,
+    behaviour: new AggressiveBehaviour(),
+    faction: VOID_FACTION,
+  });
 }
 
 const speciesList: SpeciesDef[] = [
@@ -200,7 +249,7 @@ const speciesList: SpeciesDef[] = [
         shape: "spiked",
         radius: 160, // 10× a Blob
         maxSpeed: 55,
-        maxHealth: 19000,
+        maxHealth: 25000,
         maxEnergy: Infinity,
         infiniteEnergy: true,
         damage: 125,
@@ -212,6 +261,7 @@ const speciesList: SpeciesDef[] = [
       });
     },
     canBeElite: false, // bosses are never elite
+    canBeArcher: false, // nor archers — they have their own attacks
     canSpawn: false, // and never produced by a spawner tower
   },
   {
@@ -226,7 +276,7 @@ const speciesList: SpeciesDef[] = [
         shape: "triangle", // a Lurker, scaled up
         radius: 84, // 6× a Lurker (14)
         maxSpeed: 90,
-        maxHealth: 15000,
+        maxHealth: 23000,
         maxEnergy: Infinity,
         infiniteEnergy: true,
         damage: 160,
@@ -238,6 +288,7 @@ const speciesList: SpeciesDef[] = [
       });
     },
     canBeElite: false, // bosses are never elite
+    canBeArcher: false, // nor archers — they have their own attacks
     canSpawn: false, // and never produced by a spawner tower
   },
   {
@@ -252,7 +303,7 @@ const speciesList: SpeciesDef[] = [
         shape: "triangle", // a Lurker, scaled up
         radius: 84, // 6× a Lurker (14)
         maxSpeed: 55,
-        maxHealth: 12000,
+        maxHealth: 20000,
         maxEnergy: Infinity,
         infiniteEnergy: true,
         damage: 0, // pure artillery — no contact damage
@@ -264,6 +315,7 @@ const speciesList: SpeciesDef[] = [
       });
     },
     canBeElite: false, // bosses are never elite
+    canBeArcher: false, // nor archers — they have their own attacks
     canSpawn: false, // and never produced by a spawner tower
   },
 ];

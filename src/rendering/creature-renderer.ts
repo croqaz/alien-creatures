@@ -167,6 +167,30 @@ export function drawCreature(
     ctx.restore();
   }
 
+  // Bow: an Archer carries a strung bow at its side, a curved arc with a
+  // bowstring, so its ranged role reads at a glance.
+  if (creature.isArcher) {
+    const bx = radius * 0.85;
+    ctx.save();
+    ctx.translate(bx, 0);
+    ctx.strokeStyle = "#a87232";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.7, -Math.PI / 2.4, Math.PI / 2.4);
+    ctx.stroke();
+    // Bowstring between the two tips.
+    const ty = Math.sin(Math.PI / 2.4) * radius * 0.7;
+    const tx = Math.cos(Math.PI / 2.4) * radius * 0.7;
+    ctx.strokeStyle = "rgba(230, 230, 240, 0.7)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(tx, -ty);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   ctx.restore();
 
   // Health bar (only if damaged). Width scales with body size so the boss's

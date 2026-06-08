@@ -16,6 +16,7 @@ import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "./powerup";
 import type { Behaviour } from "../behaviours/behaviour";
 import { Navigator } from "../behaviours/navigator";
 import { damageCreature } from "./creatures/void-pool";
+import { Arrow, ARROW_DAMAGE, ARROW_SPEED, ARCHER_COOLDOWN } from "./arrow";
 
 export type ShapeType =
   | "circle"
@@ -105,6 +106,17 @@ export class Creature implements Entity {
   isElite = false;
 
   /**
+   * An Archer is a rare variant that, on top of its normal behaviour, looses
+   * arrows at the nearest enemy whenever it's in fighting mode (see
+   * `maybeFireArrow`). Set by makeArcher() right after construction. A creature
+   * is at most one of Elite or Archer, and only fighters ever become archers.
+   */
+  isArcher = false;
+
+  /** Sim-time (`world.time`) at which an Archer may loose its next arrow. */
+  private nextArrowTime = 0;
+
+  /**
    * Timestamp (performance.now) until which a retaliating creature stays
    * hostile. While provoked its `attackDamage` is its `retaliation` value.
    */
@@ -176,6 +188,16 @@ export class Creature implements Entity {
     this.energy = this.maxEnergy;
     this.damage *= ELITE_STAT_MULTIPLIER;
     this.retaliation *= ELITE_STAT_MULTIPLIER;
+    return this;
+  }
+
+  /**
+   * Promote this creature to an Archer: it keeps its stats and behaviour but
+   * gains a bow, loosing arrows at nearby enemies while it's in fighting mode
+   * (see `maybeFireArrow`). Returns `this` for chaining at the spawn site.
+   */
+  makeArcher(): this {
+    this.isArcher = true;
     return this;
   }
 
@@ -269,6 +291,10 @@ export class Creature implements Entity {
     if (!this.isAlive) return;
 
     const nearby = world.getNearby(this.position, this.perceptionRadius);
+
+    // An archer looses arrows at enemies on top of whatever it's doing.
+    if (this.isArcher) this.maybeFireArrow(nearby, world);
+
     this.steerTarget = null; // behaviours set this via the navigator if they seek
     // Combat reflexes override the base behaviour, in priority order:
     //   1. retaliate — a provoked creature charges whoever just hit it;
@@ -425,6 +451,45 @@ export class Creature implements Entity {
       this.isAlive = false;
       this.deathTime = performance.now();
     }
+  }
+
+  /**
+   * Archer attack: on a fixed cooldown, loose an arrow at the nearest non-allied
+   * creature in perception. Gated on `attackDamage > 0`, so a permanently
+   * aggressive species fires whenever an enemy is in sight, while a retaliator
+   * (e.g. a Defender) only shoots while provoked — exactly when it would melee.
+   * Shielded targets are skipped (arrows are shrugged off, same as fireballs).
+   */
+  private maybeFireArrow(nearby: Entity[], world: World) {
+    if (this.attackDamage <= 0) return;
+    if (world.time < this.nextArrowTime) return;
+
+    let target: Creature | null = null;
+    let best = Infinity;
+    for (const e of nearby) {
+      if (e === this || !e.isAlive || !(e instanceof Creature)) continue;
+      if (this.alliedWith(e) || e.isShielded) continue;
+      const d = distance(this.position, e.position);
+      if (d < best) {
+        best = d;
+        target = e;
+      }
+    }
+    if (!target) return;
+
+    const dir = normalize(sub(target.position, this.position));
+    if (dir.x === 0 && dir.y === 0) return;
+    const origin = add(this.position, scale(dir, this.radius + 6));
+    world.spawn(
+      new Arrow(
+        origin,
+        scale(dir, ARROW_SPEED),
+        ARROW_DAMAGE,
+        this.faction,
+        this.id,
+      ),
+    );
+    this.nextArrowTime = world.time + ARCHER_COOLDOWN;
   }
 
   /**

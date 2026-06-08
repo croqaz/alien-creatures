@@ -7,12 +7,13 @@ import { Food } from "../entities/food";
 import { Heart } from "../entities/heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
 import { Fireball } from "../entities/fireball";
+import { Arrow } from "../entities/arrow";
 import { Wall } from "../entities/wall";
 import { drawCreature } from "./creature-renderer";
 import { drawSpawner } from "./spawner-renderer";
 import { drawFood } from "./food-renderer";
 import { drawHeart } from "./heart-renderer";
-import { drawFireball } from "./fireball-renderer";
+import { drawFireball, drawArrow } from "./projectile-renderer";
 import {
   drawShieldPowerup,
   drawSpeedPowerup,
@@ -73,12 +74,16 @@ export class Renderer {
     const speeds: SpeedPowerup[] = [];
     const swords: SwordPowerup[] = [];
     const fireballs: Fireball[] = [];
+    const arrows: Arrow[] = [];
     const spawners: Spawner[] = [];
     const creatures: Creature[] = [];
     const dead: Creature[] = [];
 
     for (const e of entities) {
-      if (e instanceof Fireball) {
+      if (e instanceof Arrow) {
+        // Checked before Fireball: an Arrow is a Fireball subclass.
+        if (e.isAlive) arrows.push(e);
+      } else if (e instanceof Fireball) {
         if (e.isAlive) fireballs.push(e);
       } else if (e instanceof Spawner) {
         // Checked before Creature: a Spawner is a Creature subclass.
@@ -108,8 +113,9 @@ export class Renderer {
     for (const s of spawners) drawSpawner(ctx, s, time);
     for (const c of dead) drawCreature(ctx, c, time);
     for (const c of creatures) drawCreature(ctx, c, time);
-    // Fireballs draw on top of everything so they read as active projectiles.
+    // Projectiles draw on top of everything so they read as active threats.
     for (const fb of fireballs) drawFireball(ctx, fb, time);
+    for (const a of arrows) drawArrow(ctx, a, time);
 
     // Selection ring: a pulsing dashed circle around the Select tool's pick.
     if (selected && selected.isAlive) {

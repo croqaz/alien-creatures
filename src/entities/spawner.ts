@@ -2,7 +2,7 @@ import { Vec2, vec } from "../utils/vec2";
 import { Creature } from "./creature";
 import type { World } from "./entity";
 import type { Behaviour } from "../behaviours/behaviour";
-import { type SpeciesDef, createWithElite } from "./creatures/registry";
+import { type SpeciesDef, createWithVariant } from "./creatures/registry";
 
 /** The tower never moves and never acts on its own — its behaviour is a no-op. */
 const IDLE_BEHAVIOUR: Behaviour = {
@@ -105,8 +105,8 @@ export class Spawner extends Creature {
       if (pos.x > world.arenaWidth - margin) continue;
       if (pos.y > world.arenaHeight - margin) continue;
       if (world.walls.overlaps(pos, this.broodRadius)) continue;
-      // Elites roll exactly as they do for any other spawn.
-      world.spawn(createWithElite(this.spawnSpecies, pos));
+      // Elite / Archer variants roll exactly as they do for any other spawn.
+      world.spawn(createWithVariant(this.spawnSpecies, pos));
       return;
     }
   }
