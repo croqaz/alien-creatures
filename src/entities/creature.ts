@@ -15,6 +15,7 @@ import { Heart } from "./heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "./powerup";
 import type { Behaviour } from "../behaviours/behaviour";
 import { Navigator } from "../behaviours/navigator";
+import { damageCreature } from "./creatures/void-pool";
 
 export type ShapeType =
   | "circle"
@@ -402,7 +403,7 @@ export class Creature implements Entity {
         // boss and its spawned spikers can pile together harmlessly.
         if (this.attackDamage > 0 && !e.isShielded && !this.alliedWith(e)) {
           const wasAlive = e.health > 0;
-          e.health -= this.attackDamage * dt;
+          damageCreature(e, this.attackDamage * dt, world); // shared-pool aware
           // Whatever we just hit fights back if it's a retaliating species.
           // Done from the attacker's side so it's immune to update order and
           // the push-apart above (which can separate us before the victim runs

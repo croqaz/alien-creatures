@@ -1,6 +1,7 @@
 import { Vec2, add, scale, distance, magnitude } from "../utils/vec2";
 import { Entity, World, generateId } from "./entity";
 import { Creature } from "./creature";
+import { damageCreature } from "./creatures/void-pool";
 
 /** Fraction of the map's larger dimension a fireball flies before fizzling out. */
 const RANGE_FRACTION = 1 / 3;
@@ -71,7 +72,7 @@ export class Fireball implements Entity {
         continue;
 
       const wasAlive = e.health > 0;
-      e.health -= this.damage;
+      damageCreature(e, this.damage, world); // shared-pool aware
       e.provoke(); // a struck defender fights back, same as a melee hit
       if (wasAlive && e.health <= 0) {
         e.health = 0;

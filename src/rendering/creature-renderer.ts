@@ -42,6 +42,34 @@ export function drawCreature(
     ctx.fill();
   }
 
+  // Charger aura: the second boss wears a permanent orange halo so its
+  // hulking orange frame reads as a boss at a glance, blink or no blink.
+  if (creature.species === "Charger" && alive) {
+    const pulse = 1 + Math.sin(time * 8 + creature.id) * 0.05;
+    const ar = radius * 1.5 * pulse;
+    const aura = ctx.createRadialGradient(0, 0, radius * 0.8, 0, 0, ar);
+    aura.addColorStop(0, "rgba(255, 140, 0, 0.4)");
+    aura.addColorStop(1, "rgba(255, 140, 0, 0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, ar, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Catapult aura: the third boss wears a permanent purple halo so its hulking
+  // purple frame reads as a boss at a glance.
+  if (creature.species === "Catapult" && alive) {
+    const pulse = 1 + Math.sin(time * 8 + creature.id) * 0.05;
+    const ar = radius * 1.5 * pulse;
+    const aura = ctx.createRadialGradient(0, 0, radius * 0.8, 0, 0, ar);
+    aura.addColorStop(0, "rgba(150, 60, 230, 0.4)");
+    aura.addColorStop(1, "rgba(150, 60, 230, 0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, ar, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Elite aura: a red halo that pulses noticeably, marking the rare 10×-stats
   // variant. Drawn for elites of any size (the boss's enraged halo above is a
   // separate, boss-only effect), and a touch larger/stronger so it stands out.

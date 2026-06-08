@@ -9,15 +9,15 @@ import {
 } from "../entities/creatures/void-spiker";
 
 // Ranged attack tuning.
-const FIREBALL_DAMAGE = 80;
+const FIREBALL_DAMAGE = 95;
 const FIREBALL_SPEED = 340;
 const FIREBALL_RANGE = 780; // won't bother firing past this
-const FIREBALL_COOLDOWN = 3; // seconds of sim time between shots
+const FIREBALL_COOLDOWN = 0.8; // seconds of sim time between shots
 
 // Stage-2 summoning tuning (kicks in at half health).
-const SPAWN_MIN_INTERVAL = 3; // seconds
-const SPAWN_MAX_INTERVAL = 6;
-const MAX_MINIONS = 10; // alive void spikers the boss will sustain at once
+const SPAWN_MIN_INTERVAL = 0.5; // seconds
+const SPAWN_MAX_INTERVAL = 1;
+const MAX_MINIONS = 50; // alive void spikers the boss will sustain at once
 
 /**
  * The boss. Permanently aggressive: it hunts the nearest creature outside its

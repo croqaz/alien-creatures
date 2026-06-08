@@ -7,6 +7,8 @@ import { AggressiveBehaviour } from "../../behaviours/aggressive";
 import { PredatorBehaviour } from "../../behaviours/predator";
 import { DefenderBehaviour } from "../../behaviours/defender";
 import { BossBehaviour } from "../../behaviours/boss";
+import { ChargerBehaviour, TELEPORT_RANGE } from "../../behaviours/charger";
+import { CatapultBehaviour } from "../../behaviours/catapult";
 import { createVoidSpiker, VOID_FACTION } from "./void-spiker";
 
 /**
@@ -204,6 +206,58 @@ const speciesList: SpeciesDef[] = [
         damage: 125,
         perceptionRadius: 900,
         behaviour: new BossBehaviour(),
+        faction: VOID_FACTION,
+        canEatFood: false, // cannot feed, but still heals from hearts
+        canPickupPowerups: false, // immune to every power-up
+      });
+    },
+    canBeElite: false, // bosses are never elite
+    canSpawn: false, // and never produced by a spawner tower
+  },
+  {
+    name: "Charger",
+    description:
+      "Colossal orange Lurker — infinite energy, brutal melee, teleports across half the map to its prey",
+    create(pos) {
+      return new Creature(pos, {
+        species: "Charger",
+        color: "#e67300", // orange
+        accentColor: "#ffa64d", // lighter orange
+        shape: "triangle", // a Lurker, scaled up
+        radius: 84, // 6× a Lurker (14)
+        maxSpeed: 90,
+        maxHealth: 15000,
+        maxEnergy: Infinity,
+        infiniteEnergy: true,
+        damage: 160,
+        perceptionRadius: TELEPORT_RANGE, // hunts prey across half the map
+        behaviour: new ChargerBehaviour(),
+        faction: VOID_FACTION,
+        canEatFood: false, // cannot feed, but still heals from hearts
+        canPickupPowerups: false, // immune to every power-up
+      });
+    },
+    canBeElite: false, // bosses are never elite
+    canSpawn: false, // and never produced by a spawner tower
+  },
+  {
+    name: "Catapult",
+    description:
+      "Colossal purple Lurker — infinite energy, lobs fireballs like the Voidspike Boss, no melee",
+    create(pos) {
+      return new Creature(pos, {
+        species: "Catapult",
+        color: "#7a2bd6", // purple
+        accentColor: "#b07cf0", // lighter purple
+        shape: "triangle", // a Lurker, scaled up
+        radius: 84, // 6× a Lurker (14)
+        maxSpeed: 55,
+        maxHealth: 12000,
+        maxEnergy: Infinity,
+        infiniteEnergy: true,
+        damage: 0, // pure artillery — no contact damage
+        perceptionRadius: 900,
+        behaviour: new CatapultBehaviour(),
         faction: VOID_FACTION,
         canEatFood: false, // cannot feed, but still heals from hearts
         canPickupPowerups: false, // immune to every power-up
