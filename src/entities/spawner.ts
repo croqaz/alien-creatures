@@ -27,7 +27,7 @@ const SPAWNER_RADIUS = 26;
 export class Spawner extends Creature {
   /** The species this tower churns out. */
   readonly spawnSpecies: SpeciesDef;
-  /** Creatures produced per second (1–10), chosen when the tower is placed. */
+  /** Creatures produced per second (0.1–10), chosen when the tower is placed. */
   spawnRate: number;
   /** Fixed footprint — the tower is immovable, so we re-pin here each frame. */
   private readonly anchor: Vec2;

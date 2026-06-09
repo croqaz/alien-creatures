@@ -55,6 +55,11 @@ export class WallGrid {
     return [...this.cells.values()];
   }
 
+  /** Remove every wall tile (used when wiping the map on import). */
+  clear(): void {
+    this.cells.clear();
+  }
+
   isEmpty(): boolean {
     return this.cells.size === 0;
   }

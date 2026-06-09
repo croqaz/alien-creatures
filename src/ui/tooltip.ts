@@ -49,8 +49,11 @@ export class Tooltip {
       const archerTag = closest.isArcher
         ? ` <span style="color:#6c6">🏹 Archer</span>`
         : "";
+      const healerTag = closest.isHealer
+        ? ` <span style="color:#cfc">✚ Healer</span>`
+        : "";
       this.el.innerHTML = `
-        <strong style="color:${closest.color}">${closest.species}</strong>${eliteTag}${archerTag}<br>
+        <strong style="color:${closest.color}">${closest.species}</strong>${eliteTag}${archerTag}${healerTag}<br>
         HP: ${Math.ceil(closest.health)}/${closest.maxHealth}<br>
         Energy: ${energy}<br>
         Doing: ${closest.lastActivity}${status}

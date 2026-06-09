@@ -29,6 +29,11 @@ export type ShapeType =
 /** How long (ms) a provoked defender stays hostile after the last hit it takes. */
 const RETALIATION_MS = 2000;
 
+/** HP a Healer restores to each nearby ally per pulse. */
+const HEAL_AMOUNT = 20;
+/** Seconds of sim time between a Healer's healing pulses. */
+const HEAL_INTERVAL = 2;
+
 /**
  * How much an Elite creature multiplies its base combat stats. Elites are rare
  * (see the spawn roll in the panel), share their species' behaviour, and only
@@ -117,6 +122,17 @@ export class Creature implements Entity {
   private nextArrowTime = 0;
 
   /**
+   * A Healer is a rare variant that deals no damage (its combat stats are
+   * stripped, even on a predator) and instead pulses healing to nearby faction
+   * allies — see `maybeHeal`. Set by makeHealer() right after construction. A
+   * creature is at most one of Elite, Archer, or Healer.
+   */
+  isHealer = false;
+
+  /** Sim-time (`world.time`) at which a Healer may pulse its next heal. */
+  private nextHealTime = 0;
+
+  /**
    * Timestamp (performance.now) until which a retaliating creature stays
    * hostile. While provoked its `attackDamage` is its `retaliation` value.
    */
@@ -198,6 +214,19 @@ export class Creature implements Entity {
    */
   makeArcher(): this {
     this.isArcher = true;
+    return this;
+  }
+
+  /**
+   * Promote this creature to a Healer: it loses all offensive ability (damage
+   * and retaliation are zeroed, so even a predator can't hurt anything) and
+   * instead pulses healing to nearby faction allies (see `maybeHeal`). Returns
+   * `this` for chaining at the spawn site.
+   */
+  makeHealer(): this {
+    this.isHealer = true;
+    this.damage = 0;
+    this.retaliation = 0;
     return this;
   }
 
@@ -287,6 +316,28 @@ export class Creature implements Entity {
     this.spedUpUntil = performance.now() + durationMs;
   }
 
+  /**
+   * Snapshot the active temporary boosts as *remaining* durations (ms) plus
+   * their multipliers — clock-independent, so they survive a save/load and can
+   * be re-applied later with applyShield/applySpeed/applySword.
+   */
+  captureBoosts(): {
+    shieldMs: number;
+    speedMs: number;
+    speedMult: number;
+    swordMs: number;
+    swordMult: number;
+  } {
+    const now = performance.now();
+    return {
+      shieldMs: Math.max(0, this.shieldedUntil - now),
+      speedMs: Math.max(0, this.spedUpUntil - now),
+      speedMult: this.speedBoost,
+      swordMs: Math.max(0, this.armedUntil - now),
+      swordMult: this.swordFactor,
+    };
+  }
+
   update(dt: number, world: World) {
     if (!this.isAlive) return;
 
@@ -294,6 +345,8 @@ export class Creature implements Entity {
 
     // An archer looses arrows at enemies on top of whatever it's doing.
     if (this.isArcher) this.maybeFireArrow(nearby, world);
+    // A healer pulses healing to nearby allies on top of whatever it's doing.
+    if (this.isHealer) this.maybeHeal(nearby, world);
 
     this.steerTarget = null; // behaviours set this via the navigator if they seek
     // Combat reflexes override the base behaviour, in priority order:
@@ -490,6 +543,24 @@ export class Creature implements Entity {
       ),
     );
     this.nextArrowTime = world.time + ARCHER_COOLDOWN;
+  }
+
+  /**
+   * Healer pulse: every HEAL_INTERVAL seconds, top up every living faction ally
+   * in perception by HEAL_AMOUNT (capped at their max health). It never heals
+   * itself, but other healers count as allies, so a pair of healers keep each
+   * other patched up.
+   */
+  private maybeHeal(nearby: Entity[], world: World) {
+    if (world.time < this.nextHealTime) return;
+    this.nextHealTime = world.time + HEAL_INTERVAL;
+
+    for (const e of nearby) {
+      if (e === this || !e.isAlive || !(e instanceof Creature)) continue;
+      if (!this.alliedWith(e)) continue; // only mend our own faction
+      if (e.health >= e.maxHealth) continue;
+      e.health = Math.min(e.maxHealth, e.health + HEAL_AMOUNT);
+    }
   }
 
   /**

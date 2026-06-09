@@ -54,6 +54,18 @@ export class Game implements World {
     this.entities.push(entity);
   }
 
+  /**
+   * Wipe the map clean: every entity and wall, the current selection, and any
+   * spawns queued this frame. Leaves `time` and `simSpeed` for the caller to
+   * set (map import restores `time` and pauses afterwards).
+   */
+  clear() {
+    this.entities = [];
+    this.pending = [];
+    this.walls.clear();
+    this.selected = null;
+  }
+
   /** World.spawn: queue an entity created mid-update; merged in after the pass. */
   spawn(entity: Entity) {
     this.pending.push(entity);

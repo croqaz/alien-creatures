@@ -39,6 +39,12 @@ export interface SpeciesDef {
    */
   canBeArcher?: boolean;
   /**
+   * Whether this species can spawn as a rare Healer variant. Defaults to true —
+   * any creature can be a Healer (even a predator, which then deals no damage).
+   * Bosses opt out — they're already special.
+   */
+  canBeHealer?: boolean;
+  /**
    * Whether a Creature Spawner tower may produce this species. Defaults to true.
    * Bosses opt out — they're one-of-a-kind, not something a tower churns out.
    */
@@ -57,15 +63,23 @@ export const ELITE_SPAWN_CHANCE = 1 / 20;
  * every 5 spawns". A creature is at most one of Elite or Archer (Elite is rarer
  * and wins the roll), and only fighters (damage or retaliation > 0) qualify.
  */
-export const ARCHER_SPAWN_CHANCE = 1 / 5;
+export const ARCHER_SPAWN_CHANCE = 1 / 10;
+
+/**
+ * Probability that an eligible spawn comes out as a Healer — roughly "once every
+ * 5 spawns", same as an Archer. Any species qualifies (a Healer deals no damage
+ * regardless of what it was), and like the others it's mutually exclusive with
+ * Elite and Archer.
+ */
+export const HEALER_SPAWN_CHANCE = 1 / 10;
 
 /**
  * Build a creature of `species` at `position`, applying the rare automatic
  * variant promotions. Shared by every spawn route (panel buttons, click-to-place,
  * and Creature Spawner towers) so variants arise identically everywhere. A
- * creature can be Elite or Archer but never both: the rarer Elite roll comes
- * first, and only if it misses does the Archer roll get a chance. Species opt
- * out via canBeElite === false / canBeArcher === false.
+ * creature takes at most one special form — Elite, Archer, or Healer: the rarer
+ * Elite roll comes first, then Archer, then Healer, each only if the prior
+ * missed. Species opt out via canBeElite / canBeArcher / canBeHealer === false.
  */
 export function createWithVariant(
   species: SpeciesDef,
@@ -80,6 +94,11 @@ export function createWithVariant(
     Math.random() < ARCHER_SPAWN_CHANCE
   ) {
     creature.makeArcher();
+  } else if (
+    species.canBeHealer !== false &&
+    Math.random() < HEALER_SPAWN_CHANCE
+  ) {
+    creature.makeHealer();
   }
   return creature;
 }
@@ -249,7 +268,7 @@ const speciesList: SpeciesDef[] = [
         shape: "spiked",
         radius: 160, // 10× a Blob
         maxSpeed: 55,
-        maxHealth: 25000,
+        maxHealth: 30000,
         maxEnergy: Infinity,
         infiniteEnergy: true,
         damage: 125,
@@ -262,6 +281,7 @@ const speciesList: SpeciesDef[] = [
     },
     canBeElite: false, // bosses are never elite
     canBeArcher: false, // nor archers — they have their own attacks
+    canBeHealer: false, // nor healers — they're already special
     canSpawn: false, // and never produced by a spawner tower
   },
   {
@@ -289,6 +309,7 @@ const speciesList: SpeciesDef[] = [
     },
     canBeElite: false, // bosses are never elite
     canBeArcher: false, // nor archers — they have their own attacks
+    canBeHealer: false, // nor healers — they're already special
     canSpawn: false, // and never produced by a spawner tower
   },
   {
@@ -316,6 +337,7 @@ const speciesList: SpeciesDef[] = [
     },
     canBeElite: false, // bosses are never elite
     canBeArcher: false, // nor archers — they have their own attacks
+    canBeHealer: false, // nor healers — they're already special
     canSpawn: false, // and never produced by a spawner tower
   },
 ];

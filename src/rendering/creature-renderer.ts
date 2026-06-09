@@ -85,6 +85,19 @@ export function drawCreature(
     ctx.fill();
   }
 
+  // Healer aura: a soft white halo, marking the variant that mends its allies.
+  if (creature.isHealer && alive) {
+    const pulse = 1 + Math.sin(time * 6 + creature.id) * 0.12;
+    const ar = (radius + 10) * 1.4 * pulse;
+    const aura = ctx.createRadialGradient(0, 0, radius * 0.7, 0, 0, ar);
+    aura.addColorStop(0, "rgba(245, 255, 245, 0.55)");
+    aura.addColorStop(1, "rgba(245, 255, 245, 0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, ar, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Speed boost: amber streaks trailing behind the direction of travel.
   if (creature.isSpedUp && magnitude(velocity) > 5) {
     const back = angle + Math.PI;

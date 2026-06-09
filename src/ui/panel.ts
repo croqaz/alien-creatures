@@ -11,6 +11,7 @@ import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
 import { Creature } from "../entities/creature";
 import { Spawner } from "../entities/spawner";
 import type { Entity } from "../entities/entity";
+import { serializeMap, deserializeMap } from "../core/map-io";
 import { Vec2, randomInRect, distance } from "../utils/vec2";
 
 /** Which spawn tab is showing — drives what Place mode drops. */
@@ -303,6 +304,8 @@ export class Panel {
     const placeModeBtn = document.getElementById("place-mode-btn")!;
     const moveModeBtn = document.getElementById("move-mode-btn")!;
     const deleteModeBtn = document.getElementById("delete-mode-btn")!;
+    const exportMapBtn = document.getElementById("export-map-btn")!;
+    const importMapBtn = document.getElementById("import-map-btn")!;
     const spawnerConfig = document.getElementById("spawner-config")!;
     const spawnerSpeedVal = document.getElementById("spawner-speed-val")!;
     const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -402,6 +405,9 @@ export class Panel {
       setMode(this.mode === "delete" ? "select" : "delete"),
     );
 
+    exportMapBtn.addEventListener("click", () => this.exportMap());
+    importMapBtn.addEventListener("click", () => this.importMap());
+
     // The spawner config (creature + rate) is only relevant when the chosen
     // object is a Creature Spawner; reveal it then, and refresh the cursor.
     const refreshSpawnerConfig = () => {
@@ -414,8 +420,16 @@ export class Panel {
       refreshSpawnerConfig();
       refreshModeButtons();
     });
+    const formatSpawnerSpeed = (rate: number) => {
+      // Round off range-step float fuzz (e.g. 0.30000004) to one decimal.
+      const r = Math.round(rate * 10) / 10;
+      // Slow rates read more naturally as a period ("1 every 10s") than "0.1 /s".
+      return r < 1 ? `1 every ${Math.round(1 / r)}s` : `${r} /s`;
+    };
     this.spawnerSpeed.addEventListener("input", () => {
-      spawnerSpeedVal.textContent = this.spawnerSpeed.value;
+      spawnerSpeedVal.textContent = formatSpawnerSpeed(
+        Number(this.spawnerSpeed.value),
+      );
     });
     refreshSpawnerConfig();
 
@@ -446,25 +460,74 @@ export class Panel {
     refreshModeButtons();
   }
 
+  /** Serialise the whole map and offer it to the user as a JSON download. */
+  private exportMap() {
+    const json = serializeMap(this.game);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `alien-map-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Load a map from a JSON file the user picks. If the current map has anything
+   * in it, confirm the wholesale replacement first. On success the sim pauses
+   * automatically so the loaded scene can be inspected before it runs.
+   */
+  private importMap() {
+    const populated =
+      this.game.entities.length > 0 || !this.game.walls.isEmpty();
+    if (
+      populated &&
+      !confirm(
+        "Replace the whole map with the imported file? This clears all current creatures, spawners, objects and walls.",
+      )
+    ) {
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        deserializeMap(this.game, await file.text());
+        this.setSpeed(0); // pause automatically after a successful import
+        this.updateStats();
+      } catch (err) {
+        alert(`Could not import map: ${(err as Error).message}`);
+      }
+    });
+    input.click();
+  }
+
   private bindSpeedControls() {
-    const buttons = document.querySelectorAll(".speed-controls button");
-    buttons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const speed = Number((btn as HTMLElement).dataset["speed"]);
-        this.setSpeed(speed);
-      });
+    const slider = document.getElementById("sim-speed") as HTMLInputElement;
+    const pauseBtn = document.getElementById("pause-btn")!;
+    slider.addEventListener("input", () => this.setSpeed(Number(slider.value)));
+    pauseBtn.addEventListener("click", () => {
+      // Pause toggles to 0 and back to the last running speed, same as Space.
+      this.setSpeed(this.game.simSpeed === 0 ? this.prevSpeed : 0);
     });
   }
 
-  /** Set the sim speed and keep the speed buttons' highlight in sync. */
+  /** Set the sim speed (0 = paused) and keep the slider, label and pause
+   * button's highlight in sync. The slider tracks the last running speed, so
+   * pausing leaves it parked where it was. */
   private setSpeed(speed: number) {
     this.game.simSpeed = speed;
     if (speed !== 0) this.prevSpeed = speed; // remember it for un-pausing
-    const buttons = document.querySelectorAll(".speed-controls button");
-    buttons.forEach((b) => {
-      const s = Number((b as HTMLElement).dataset["speed"]);
-      b.classList.toggle("active", s === speed);
-    });
+    const slider = document.getElementById("sim-speed") as HTMLInputElement;
+    const pauseBtn = document.getElementById("pause-btn")!;
+    const label = document.getElementById("sim-speed-val")!;
+    if (speed !== 0) slider.value = String(speed);
+    pauseBtn.classList.toggle("active", speed === 0);
+    label.textContent = speed === 0 ? "Paused" : `${speed}×`;
   }
 
   /** Space toggles pause, restoring the previous speed when resumed. */
@@ -513,7 +576,10 @@ export class Panel {
       }
     }
 
-    let html = `Creatures: ${creatures.length} &nbsp;|&nbsp; Spawners: ${spawners.length} &nbsp;|&nbsp; Food: ${food.length} &nbsp;|&nbsp; Hearts: ${hearts.length} &nbsp;|&nbsp; Shields: ${shields.length} &nbsp;|&nbsp; Speed: ${speeds.length} &nbsp;|&nbsp; Swords: ${swords.length}<br>`;
+    // Elapsed sim time since the map started — counts normal seconds, so it
+    // advances at `simSpeed` per real second (8/s at max speed, frozen at pause).
+    const elapsed = Math.floor(this.game.time);
+    let html = `Time: ${elapsed}s &nbsp;|&nbsp; Creatures: ${creatures.length} &nbsp;|&nbsp; Spawners: ${spawners.length} &nbsp;|&nbsp; Food: ${food.length} &nbsp;|&nbsp; Hearts: ${hearts.length} &nbsp;|&nbsp; Shields: ${shields.length} &nbsp;|&nbsp; Speed: ${speeds.length} &nbsp;|&nbsp; Swords: ${swords.length}<br>`;
     for (const [name, count] of byCounts) {
       html += `${name}: ${count} &nbsp; `;
     }
