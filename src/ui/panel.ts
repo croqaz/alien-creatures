@@ -10,6 +10,7 @@ import { Heart } from "../entities/heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
 import { Creature } from "../entities/creature";
 import { Spawner } from "../entities/spawner";
+import { CreativeSpawner } from "../entities/creative-spawner";
 import type { Entity } from "../entities/entity";
 import { serializeMap, deserializeMap } from "../core/map-io";
 import { Vec2, randomInRect, distance } from "../utils/vec2";
@@ -17,7 +18,13 @@ import { Vec2, randomInRect, distance } from "../utils/vec2";
 /** Which spawn tab is showing — drives what Place mode drops. */
 type Tab = "creatures" | "objects";
 /** The placeable object kinds offered in the Objects tab's selector. */
-type ObjectKind = "wall" | "shield" | "speed" | "sword" | "spawner";
+type ObjectKind =
+  | "wall"
+  | "shield"
+  | "speed"
+  | "sword"
+  | "spawner"
+  | "creative";
 /**
  * The active map-click tool. Exactly one is active at a time:
  *  - select: highlight/inspect the creature under the cursor
@@ -36,11 +43,17 @@ export class Panel {
   /** Last non-zero sim speed, restored when un-pausing with Space. */
   private prevSpeed = 1;
 
+  /** The Creative Spawner whose menu is currently shown (matches selection). */
+  private csShown: CreativeSpawner | null = null;
+  /** Index of the program step highlighted for Remove, or -1 for none. */
+  private csSelectedStep = -1;
+
   constructor(private game: Game) {
     this.populateSpeciesSelect();
     this.bindButtons();
     this.bindSpeedControls();
     this.bindKeyboard();
+    this.bindCreativeMenu();
   }
 
   /**
@@ -159,7 +172,32 @@ export class Panel {
       case "spawner":
         this.placeSpawnerAt(worldPos);
         break;
+      case "creative":
+        this.placeCreativeSpawnerAt(worldPos);
+        break;
     }
+  }
+
+  /**
+   * Place an indestructible Creative Spawner at the click, then select it so its
+   * control menu pops up immediately. Same footprint/anti-stacking rules as the
+   * Creature Spawner (it sits in the same family of towers).
+   */
+  private placeCreativeSpawnerAt(worldPos: Vec2) {
+    if (this.game.walls.overlaps(worldPos, 28)) return;
+    for (const e of this.game.entities) {
+      if (
+        (e instanceof Spawner || e instanceof CreativeSpawner) &&
+        e.isAlive &&
+        distance(worldPos, e.position) < e.radius * 2
+      ) {
+        return;
+      }
+    }
+    const spawner = new CreativeSpawner({ ...worldPos });
+    this.game.addEntity(spawner);
+    // Surface its menu right away (selection drives the floating panel).
+    this.game.selected = spawner;
   }
 
   /** Place a Creature Spawner tower of the configured species/rate at the click. */
@@ -248,6 +286,10 @@ export class Panel {
     this.grabbed.velocity = { x: 0, y: 0 };
     // Drop any in-progress steering so the behaviour re-plans from the new spot.
     this.grabbed.steerTarget = null;
+    // An immovable spawner re-pins to its anchor each frame, so move the anchor
+    // too or the drag snaps right back.
+    if (this.grabbed instanceof CreativeSpawner)
+      this.grabbed.relocate(worldPos);
   }
 
   private populateSpeciesSelect() {
@@ -450,6 +492,9 @@ export class Panel {
           this.deleteAt(worldPos);
           break;
       }
+      // Any click can change (or clear) the selection — keep the Creative
+      // Spawner menu in sync immediately, not just on the 0.5s stats tick.
+      this.refreshCreativeMenu();
     };
 
     // Releasing the mouse ends a Move drag, dropping the carried creature.
@@ -548,7 +593,10 @@ export class Panel {
     // tally and species breakdown, and count them on their own line.
     const creatures = this.game.entities.filter(
       (e: Entity) =>
-        e instanceof Creature && !(e instanceof Spawner) && e.isAlive,
+        e instanceof Creature &&
+        !(e instanceof Spawner) &&
+        !(e instanceof CreativeSpawner) &&
+        e.isAlive,
     );
     const spawners = this.game.entities.filter(
       (e: Entity) => e instanceof Spawner && e.isAlive,
@@ -584,5 +632,245 @@ export class Panel {
       html += `${name}: ${count} &nbsp; `;
     }
     statsEl.innerHTML = html;
+
+    // Piggyback the live Creative Spawner progress on the same cadence.
+    this.refreshCreativeMenu();
+  }
+
+  // ---- Creative Spawner control menu -------------------------------------
+
+  private get csMenu() {
+    return document.getElementById("creative-menu")!;
+  }
+  private get csProgramEl() {
+    return document.getElementById("cs-program")!;
+  }
+  private get csStatusEl() {
+    return document.getElementById("cs-status")!;
+  }
+
+  /** The species a round may emit — same set the Creature Spawner offers. */
+  private spawnableSpeciesNames(): string[] {
+    return getSpeciesList()
+      .filter((s) => s.canSpawn !== false)
+      .map((s) => s.name);
+  }
+
+  private bindCreativeMenu() {
+    const addRound = document.getElementById("cs-add-round")!;
+    const addWait = document.getElementById("cs-add-wait")!;
+    const remove = document.getElementById("cs-remove")!;
+    const start = document.getElementById("cs-start")!;
+    const stop = document.getElementById("cs-stop")!;
+
+    addRound.addEventListener("click", () => {
+      const cs = this.csShown;
+      if (!cs || cs.running) return;
+      const species = this.spawnableSpeciesNames()[0] ?? "Blob";
+      cs.program.push({ kind: "round", species, count: 10 });
+      this.csSelectedStep = cs.program.length - 1;
+      this.rebuildCreativeProgram();
+    });
+
+    addWait.addEventListener("click", () => {
+      const cs = this.csShown;
+      if (!cs || cs.running) return;
+      cs.program.push({ kind: "wait", seconds: 5 });
+      this.csSelectedStep = cs.program.length - 1;
+      this.rebuildCreativeProgram();
+    });
+
+    remove.addEventListener("click", () => {
+      const cs = this.csShown;
+      if (!cs || cs.running) return;
+      if (this.csSelectedStep < 0 || this.csSelectedStep >= cs.program.length) {
+        return;
+      }
+      cs.program.splice(this.csSelectedStep, 1);
+      this.csSelectedStep = -1;
+      this.rebuildCreativeProgram();
+    });
+
+    start.addEventListener("click", () => {
+      const cs = this.csShown;
+      if (!cs || cs.running || cs.program.length === 0) return;
+      cs.start();
+      this.rebuildCreativeProgram(); // lock the editors while running
+    });
+
+    stop.addEventListener("click", () => {
+      const cs = this.csShown;
+      if (!cs) return;
+      cs.stop();
+      this.rebuildCreativeProgram(); // unlock the editors
+    });
+  }
+
+  /**
+   * Reconcile the floating menu with the current selection: show it for a
+   * selected Creative Spawner (rebuilding its rows when the target changes),
+   * hide it otherwise. Cheap to call often — only rebuilds on a target change.
+   */
+  private refreshCreativeMenu() {
+    const sel = this.game.selected;
+    const cs = sel instanceof CreativeSpawner && sel.isAlive ? sel : null;
+
+    if (cs !== this.csShown) {
+      this.csShown = cs;
+      this.csSelectedStep = -1;
+      this.rebuildCreativeProgram();
+    }
+
+    this.csMenu.toggleAttribute("hidden", cs === null);
+    if (cs) this.updateCreativeProgress();
+  }
+
+  /**
+   * Rebuild the program rows from scratch — called only on structural changes
+   * (target switch, add, remove, start/stop) so it never clobbers a value the
+   * user is mid-edit during the periodic progress refresh.
+   */
+  private rebuildCreativeProgram() {
+    const list = this.csProgramEl;
+    list.innerHTML = "";
+    const cs = this.csShown;
+    if (!cs) return;
+
+    if (cs.program.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "cs-empty";
+      empty.textContent = "No steps yet — add a round or a wait.";
+      list.appendChild(empty);
+    }
+
+    const speciesNames = this.spawnableSpeciesNames();
+    cs.program.forEach((step, i) => {
+      const row = document.createElement("div");
+      row.className = "cs-row";
+      row.dataset.index = String(i);
+
+      const tag = document.createElement("span");
+      tag.className = "cs-tag";
+      tag.textContent = step.kind === "round" ? "Round" : "Wait";
+      row.appendChild(tag);
+
+      if (step.kind === "round") {
+        const sel = document.createElement("select");
+        for (const name of speciesNames) {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          if (name === step.species) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        sel.disabled = cs.running;
+        sel.addEventListener("change", () => {
+          step.species = sel.value;
+        });
+        row.appendChild(sel);
+
+        const count = document.createElement("input");
+        count.type = "number";
+        count.min = "1";
+        count.step = "1";
+        count.value = String(step.count);
+        count.disabled = cs.running;
+        count.addEventListener("change", () => {
+          const n = Math.max(1, Math.floor(Number(count.value) || 1));
+          step.count = n;
+          count.value = String(n);
+        });
+        row.appendChild(count);
+      } else {
+        const secs = document.createElement("input");
+        secs.type = "number";
+        secs.min = "0";
+        secs.step = "0.5";
+        secs.value = String(step.seconds);
+        secs.disabled = cs.running;
+        secs.addEventListener("change", () => {
+          const n = Math.max(0, Number(secs.value) || 0);
+          step.seconds = n;
+          secs.value = String(n);
+        });
+        row.appendChild(secs);
+
+        const unit = document.createElement("span");
+        unit.textContent = "s";
+        row.appendChild(unit);
+      }
+
+      const prog = document.createElement("span");
+      prog.className = "cs-prog";
+      row.appendChild(prog);
+
+      // Click anywhere on the row (the inputs keep working) selects it for Remove.
+      row.addEventListener("click", () => {
+        if (cs.running) return; // no editing while running
+        this.csSelectedStep = i;
+        this.markSelectedRow();
+        this.updateCreativeProgress(); // re-enable the Remove button for this pick
+      });
+
+      list.appendChild(row);
+    });
+
+    this.markSelectedRow();
+    this.updateCreativeProgress();
+  }
+
+  /** Highlight the row picked for Remove (independent of the live progress). */
+  private markSelectedRow() {
+    const rows = this.csProgramEl.querySelectorAll<HTMLElement>(".cs-row");
+    rows.forEach((row, i) => {
+      row.classList.toggle("selected", i === this.csSelectedStep);
+    });
+  }
+
+  /**
+   * Refresh the live bits: status line, per-step progress, the active-step
+   * highlight and the enabled/disabled state of the buttons. Does not recreate
+   * any rows, so it's safe to call on the periodic stats tick.
+   */
+  private updateCreativeProgress() {
+    const cs = this.csShown;
+    if (!cs) return;
+
+    const len = cs.program.length;
+    if (cs.running) {
+      this.csStatusEl.textContent = `Running — step ${cs.stepIndex + 1} of ${len}`;
+    } else if (len === 0) {
+      this.csStatusEl.textContent = "Empty — add rounds and waits, then Start.";
+    } else {
+      this.csStatusEl.textContent = "Ready — press Start to run.";
+    }
+
+    const rows = this.csProgramEl.querySelectorAll<HTMLElement>(".cs-row");
+    rows.forEach((row, i) => {
+      const active = cs.running && i === cs.stepIndex;
+      row.classList.toggle("active", active);
+      const prog = row.querySelector<HTMLElement>(".cs-prog");
+      if (!prog) return;
+      const step = cs.program[i];
+      if (cs.running && i < cs.stepIndex) {
+        prog.textContent = "✓";
+      } else if (active && step) {
+        prog.textContent =
+          step.kind === "round"
+            ? `${cs.spawnedInStep}/${step.count}`
+            : `${cs.stepElapsed.toFixed(1)}/${step.seconds}s`;
+      } else {
+        prog.textContent = "";
+      }
+    });
+
+    const setDisabled = (id: string, disabled: boolean) => {
+      (document.getElementById(id) as HTMLButtonElement).disabled = disabled;
+    };
+    setDisabled("cs-add-round", cs.running);
+    setDisabled("cs-add-wait", cs.running);
+    setDisabled("cs-remove", cs.running || this.csSelectedStep < 0);
+    setDisabled("cs-start", cs.running || len === 0);
+    setDisabled("cs-stop", !cs.running);
   }
 }

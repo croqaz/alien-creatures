@@ -121,6 +121,14 @@ export class Creature implements Entity {
   facing = 0;
   isAlive = true;
 
+  /**
+   * A non-combatant structure that nothing can damage and nobody targets (the
+   * Creative Spawner). See `alliedWith`, which treats an indestructible body as
+   * everyone's ally so no behaviour ever hunts, fears or shoots it, and
+   * `damageCreature`, which no-ops any hit against it.
+   */
+  indestructible = false;
+
   species: string;
   color: string;
   accentColor: string;
@@ -300,6 +308,11 @@ export class Creature implements Entity {
    * factionless creatures) — preserving every-creature-for-itself by default.
    */
   alliedWith(other: Creature): boolean {
+    // An indestructible structure (the Creative Spawner) is a non-combatant: it
+    // counts as allied with everyone so no behaviour ever picks it as a target,
+    // flees it, or tries to damage it. This single rule covers every targeting
+    // loop, since they all skip allies.
+    if (this.indestructible || other.indestructible) return true;
     return this.faction !== "" && this.faction === other.faction;
   }
 

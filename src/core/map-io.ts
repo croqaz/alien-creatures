@@ -1,6 +1,10 @@
 import type { Game } from "./game";
 import { Creature } from "../entities/creature";
 import { Spawner } from "../entities/spawner";
+import {
+  CreativeSpawner,
+  type ProgramStep,
+} from "../entities/creative-spawner";
 import { Food } from "../entities/food";
 import { Heart } from "../entities/heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
@@ -19,7 +23,9 @@ import { getSpecies } from "../entities/creatures/registry";
  * arrows) and the spatial grid are intentionally not saved.
  */
 
-export const MAP_FORMAT_VERSION = 1;
+// v2 adds the "creative" entity (Creative Spawner with its scripted program).
+// v1 files still load — they simply contain none.
+export const MAP_FORMAT_VERSION = 2;
 
 interface Vec2J {
   x: number;
@@ -54,6 +60,13 @@ interface SpawnerJ {
   species: string;
   pos: Vec2J;
   rate: number;
+}
+
+interface CreativeSpawnerJ {
+  kind: "creative";
+  pos: Vec2J;
+  /** The scripted rounds/waits, in order. Run state is intentionally not saved. */
+  program: ProgramStep[];
 }
 
 interface FoodJ {
@@ -96,6 +109,7 @@ interface SwordJ {
 type EntityJ =
   | CreatureJ
   | SpawnerJ
+  | CreativeSpawnerJ
   | FoodJ
   | HeartJ
   | ShieldJ
@@ -120,8 +134,16 @@ export function serializeMap(game: Game): string {
   const entities: EntityJ[] = [];
 
   for (const e of game.entities) {
-    // Spawner extends Creature, so test it first.
-    if (e instanceof Spawner) {
+    // CreativeSpawner and Spawner both extend Creature, so test them first.
+    if (e instanceof CreativeSpawner) {
+      if (!e.isAlive) continue;
+      entities.push({
+        kind: "creative",
+        pos: v(e.position),
+        // Deep-copy each plain step so the file owns its data, not the live spawner.
+        program: e.program.map((s) => ({ ...s })),
+      });
+    } else if (e instanceof Spawner) {
       if (!e.isAlive) continue;
       entities.push({
         kind: "spawner",
@@ -213,9 +235,11 @@ export function deserializeMap(game: Game, json: string): void {
   if (!file || typeof file !== "object") {
     throw new Error("not a map file");
   }
-  if (file.version !== MAP_FORMAT_VERSION) {
+  // Older versions load fine (each new version is purely additive); only a
+  // newer-than-known file is rejected.
+  if (typeof file.version !== "number" || file.version > MAP_FORMAT_VERSION) {
     throw new Error(
-      `unsupported map version ${file.version} (expected ${MAP_FORMAT_VERSION})`,
+      `unsupported map version ${file.version} (this build reads up to ${MAP_FORMAT_VERSION})`,
     );
   }
   if (!Array.isArray(file.entities) || !Array.isArray(file.walls)) {
@@ -245,6 +269,12 @@ export function deserializeMap(game: Game, json: string): void {
         game.addEntity(new Spawner(v(ent.pos), def, ent.rate));
         break;
       }
+      case "creative": {
+        const cs = new CreativeSpawner(v(ent.pos));
+        cs.program = sanitizeProgram(ent.program);
+        game.addEntity(cs);
+        break;
+      }
       case "food":
         game.addEntity(new Food(v(ent.pos), ent.nutrition, ent.color));
         break;
@@ -266,6 +296,32 @@ export function deserializeMap(game: Game, json: string): void {
         break;
     }
   }
+}
+
+/**
+ * Coerce an untrusted program array from a file into well-formed steps,
+ * dropping anything malformed (bad kind, unknown species, non-finite numbers)
+ * rather than letting a hand-edited file crash the spawner at runtime.
+ */
+function sanitizeProgram(raw: unknown): ProgramStep[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ProgramStep[] = [];
+  for (const s of raw) {
+    if (!s || typeof s !== "object") continue;
+    const step = s as Record<string, unknown>;
+    if (step.kind === "round") {
+      if (typeof step.species !== "string" || !getSpecies(step.species))
+        continue;
+      const count = Math.floor(Number(step.count));
+      if (!Number.isFinite(count) || count < 1) continue;
+      out.push({ kind: "round", species: step.species, count });
+    } else if (step.kind === "wait") {
+      const seconds = Number(step.seconds);
+      if (!Number.isFinite(seconds) || seconds < 0) continue;
+      out.push({ kind: "wait", seconds });
+    }
+  }
+  return out;
 }
 
 function restoreCreature(game: Game, ent: CreatureJ): void {

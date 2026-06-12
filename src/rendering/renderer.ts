@@ -3,6 +3,7 @@ import { Arena } from "../core/arena";
 import { Entity } from "../entities/entity";
 import { Creature } from "../entities/creature";
 import { Spawner } from "../entities/spawner";
+import { CreativeSpawner } from "../entities/creative-spawner";
 import { Food } from "../entities/food";
 import { Heart } from "../entities/heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
@@ -13,6 +14,7 @@ import { Shockwave } from "../entities/shockwave";
 import { Wall } from "../entities/wall";
 import { drawCreature } from "./creature-renderer";
 import { drawSpawner } from "./spawner-renderer";
+import { drawCreativeSpawner } from "./creative-spawner-renderer";
 import { drawFood } from "./food-renderer";
 import { drawHeart } from "./heart-renderer";
 import {
@@ -85,6 +87,7 @@ export class Renderer {
     const lasers: LaserBeam[] = [];
     const shockwaves: Shockwave[] = [];
     const spawners: Spawner[] = [];
+    const creativeSpawners: CreativeSpawner[] = [];
     const creatures: Creature[] = [];
     const dead: Creature[] = [];
 
@@ -98,6 +101,9 @@ export class Renderer {
         if (e.isAlive) lasers.push(e);
       } else if (e instanceof Shockwave) {
         if (e.isAlive) shockwaves.push(e);
+      } else if (e instanceof CreativeSpawner) {
+        // Checked before Spawner/Creature: it's a Creature subclass too.
+        if (e.isAlive) creativeSpawners.push(e);
       } else if (e instanceof Spawner) {
         // Checked before Creature: a Spawner is a Creature subclass.
         if (e.isAlive) spawners.push(e);
@@ -124,6 +130,7 @@ export class Renderer {
     for (const p of swords) drawSwordPowerup(ctx, p, time);
     // Towers sit beneath the creatures milling around them.
     for (const s of spawners) drawSpawner(ctx, s, time);
+    for (const s of creativeSpawners) drawCreativeSpawner(ctx, s, time);
     for (const c of dead) drawCreature(ctx, c, time);
     for (const c of creatures) drawCreature(ctx, c, time);
     // Projectiles and boss attacks draw on top of everything so they read as

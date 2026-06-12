@@ -35,6 +35,11 @@ function isPooled(e: Entity): e is Creature {
  * zero here are cleaned up on their next update tick (same as energy damage).
  */
 export function damageCreature(target: Creature, amount: number, world: World) {
+  // Indestructible structures (the Creative Spawner) shrug off every hit. This
+  // is the single damage chokepoint, so guarding it here makes them immune to
+  // every source — melee, projectiles and boss attacks alike.
+  if (target.indestructible) return;
+
   // Crust shells (the Shard of Death) soak every hit before the core takes any.
   // The outermost living shell absorbs the whole blow; when it shatters the
   // body shrinks by its thickness and the next shell inward is exposed. Overkill
