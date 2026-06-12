@@ -24,10 +24,31 @@ export type ShapeType =
   | "triangle"
   | "rounded-rect"
   | "spiked"
-  | "pentagon";
+  | "pentagon"
+  | "crystal";
+
+/**
+ * One concentric destructible shell around a creature's body — the Shard of
+ * Death's "crusts". Shells are stored outermost-first (see `Creature.crusts`).
+ * `thickness` is how far this shell extends the body's collision radius while it
+ * still stands; when its `hp` reaches zero the shell shatters, the radius shrinks
+ * by `thickness`, and the next shell inward becomes exposed.
+ */
+export interface Crust {
+  hp: number;
+  maxHp: number;
+  thickness: number;
+}
 
 /** How long (ms) a provoked defender stays hostile after the last hit it takes. */
 const RETALIATION_MS = 2000;
+
+/**
+ * Fastest a creature may pivot its facing, in radians per second — a full turn
+ * (360°) per second. Caps how quickly `facing` swings toward the heading of the
+ * velocity vector so creatures rotate smoothly rather than snapping around.
+ */
+const MAX_TURN_RATE = Math.PI;
 
 /** HP a Healer restores to each nearby ally per pulse. */
 const HEAL_AMOUNT = 20;
@@ -74,12 +95,30 @@ export interface CreatureConfig {
   canEatFood?: boolean;
   /** When false the creature ignores all power-ups. Defaults true. */
   canPickupPowerups?: boolean;
+  /**
+   * Concentric destructible shells around the body (the Shard of Death's
+   * crusts), ordered outermost-first. While any survive, every incoming hit is
+   * soaked by the outermost shell before the creature's own health takes a
+   * scratch (see `damageCreature`), and the body's collision radius is grown by
+   * the sum of the living shells' thicknesses — so the boss is physically bigger
+   * while armoured and shrinks back to `radius` as its crusts shatter. Omit for
+   * every other creature.
+   */
+  crusts?: { hp: number; thickness: number }[];
 }
 
 export class Creature implements Entity {
   id: number;
   position: Vec2;
   velocity: Vec2 = vec(0, 0);
+  /**
+   * The direction the creature visually faces, in radians. It chases the
+   * heading implied by `velocity` but is rate-limited (see MAX_TURN_RATE) so a
+   * creature pivots smoothly instead of snapping — crucially, it never reads
+   * the garbage angle of a near-zero velocity vector mid-turn, which used to
+   * make creatures flip 180° and spin when changing direction to face a foe.
+   */
+  facing = 0;
   isAlive = true;
 
   species: string;
@@ -101,6 +140,18 @@ export class Creature implements Entity {
   infiniteEnergy: boolean;
   canEatFood: boolean;
   canPickupPowerups: boolean;
+
+  /**
+   * Body radius beneath any crust shells. Equals `radius` for a creature with no
+   * crusts; for the Shard of Death it's the bare core the crystal is drawn at,
+   * while `radius` (the collision size) bulges out to cover the living shells.
+   */
+  coreRadius: number;
+  /**
+   * Concentric destructible shells, outermost-first. Empty for almost every
+   * creature; the Shard of Death carries three. See `CreatureConfig.crusts`.
+   */
+  crusts: Crust[] = [];
 
   /**
    * An Elite is a rare, super-charged variant of an ordinary creature: same
@@ -185,6 +236,18 @@ export class Creature implements Entity {
     this.infiniteEnergy = config.infiniteEnergy ?? false;
     this.canEatFood = config.canEatFood ?? true;
     this.canPickupPowerups = config.canPickupPowerups ?? true;
+    // Crust shells: the bare body is `radius`; each living shell bulges the
+    // collision radius out by its thickness until it shatters.
+    this.coreRadius = config.radius;
+    if (config.crusts && config.crusts.length > 0) {
+      this.crusts = config.crusts.map((c) => ({
+        hp: c.hp,
+        maxHp: c.hp,
+        thickness: c.thickness,
+      }));
+      this.radius =
+        this.coreRadius + this.crusts.reduce((s, c) => s + c.thickness, 0);
+    }
     this.spawnTime = performance.now();
   }
 
@@ -362,6 +425,7 @@ export class Creature implements Entity {
       lerp(this.velocity, steered, Math.min(1, dt * 8)),
       this.maxSpeed,
     );
+    this.updateFacing(dt);
     this.position = add(this.position, scale(this.velocity, dt));
 
     // Clamp to arena
@@ -504,6 +568,25 @@ export class Creature implements Entity {
       this.isAlive = false;
       this.deathTime = performance.now();
     }
+  }
+
+  /**
+   * Pivot `facing` toward the heading of the current velocity, capped at
+   * MAX_TURN_RATE. A near-stationary creature keeps its current facing (a
+   * near-zero velocity has no meaningful direction), which is what stops the
+   * spin-out when a creature decelerates through zero to reverse course.
+   */
+  private updateFacing(dt: number) {
+    const speed = Math.hypot(this.velocity.x, this.velocity.y);
+    if (speed < 1e-3) return; // no heading worth chasing — hold steady
+    const target = Math.atan2(this.velocity.y, this.velocity.x);
+    // Shortest signed angular distance, wrapped to (-π, π].
+    let delta = target - this.facing;
+    delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+    const maxStep = MAX_TURN_RATE * dt;
+    if (delta > maxStep) delta = maxStep;
+    else if (delta < -maxStep) delta = -maxStep;
+    this.facing += delta;
   }
 
   /**

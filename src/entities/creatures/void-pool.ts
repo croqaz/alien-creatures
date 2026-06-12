@@ -35,6 +35,21 @@ function isPooled(e: Entity): e is Creature {
  * zero here are cleaned up on their next update tick (same as energy damage).
  */
 export function damageCreature(target: Creature, amount: number, world: World) {
+  // Crust shells (the Shard of Death) soak every hit before the core takes any.
+  // The outermost living shell absorbs the whole blow; when it shatters the
+  // body shrinks by its thickness and the next shell inward is exposed. Overkill
+  // on the shattering blow is simply lost — shells have far more HP than any
+  // single hit, so the spill-over never matters in practice.
+  const outer = target.crusts[0];
+  if (amount > 0 && outer) {
+    outer.hp -= amount;
+    if (outer.hp <= 0) {
+      target.radius -= outer.thickness;
+      target.crusts.shift();
+    }
+    return;
+  }
+
   if (amount <= 0 || !POOLED_SPECIES.has(target.species)) {
     target.health -= amount;
     return;

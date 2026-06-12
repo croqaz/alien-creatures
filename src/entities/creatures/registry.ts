@@ -9,6 +9,7 @@ import { DefenderBehaviour } from "../../behaviours/defender";
 import { BossBehaviour } from "../../behaviours/boss";
 import { ChargerBehaviour, TELEPORT_RANGE } from "../../behaviours/charger";
 import { CatapultBehaviour } from "../../behaviours/catapult";
+import { ShardBossBehaviour } from "../../behaviours/shard-boss";
 
 /**
  * Allegiance groups shared across species (see `Creature.faction`). Members of
@@ -121,6 +122,29 @@ export function createVoidSpiker(pos: Vec2): Creature {
     maxEnergy: 100,
     damage: 30,
     perceptionRadius: 300,
+    behaviour: new AggressiveBehaviour(),
+    faction: VOID_FACTION,
+  });
+}
+
+/**
+ * A Death Shardling: the Shard of Death's loyal minion — a small, fast crystal
+ * splinter that attacks every creature outside the void faction. Exposed as a
+ * standalone factory (as well as the registry entry below) so the boss behaviour
+ * can summon them mid-fight without routing through the variant-roll spawn path.
+ */
+export function createDeathShardling(pos: Vec2): Creature {
+  return new Creature(pos, {
+    species: "Death Shardling",
+    color: "#b9263f", // crystalline crimson
+    accentColor: "#ff6f8a",
+    shape: "crystal",
+    radius: 14,
+    maxSpeed: 100,
+    maxHealth: 110,
+    maxEnergy: 100,
+    damage: 28,
+    perceptionRadius: 320,
     behaviour: new AggressiveBehaviour(),
     faction: VOID_FACTION,
   });
@@ -333,6 +357,49 @@ const speciesList: SpeciesDef[] = [
         faction: VOID_FACTION,
         canEatFood: false, // cannot feed, but still heals from hearts
         canPickupPowerups: false, // immune to every power-up
+      });
+    },
+    canBeElite: false, // bosses are never elite
+    canBeArcher: false, // nor archers — they have their own attacks
+    canBeHealer: false, // nor healers — they're already special
+    canSpawn: false, // and never produced by a spawner tower
+  },
+  {
+    name: "Death Shardling",
+    description:
+      "Loyal minion of the Shard of Death — a fast crystal splinter that attacks all outsiders",
+    create: createDeathShardling,
+    canBeElite: true, // boss minion
+  },
+  {
+    name: "Shard of Death",
+    description:
+      "Colossal crystal sheathed in three crusts — no melee, fires lasers and knock-back shockwaves, summons shardlings at half health",
+    create(pos) {
+      return new Creature(pos, {
+        species: "Shard of Death",
+        color: "#3d006e", // pale icy crystal
+        accentColor: "#d6005a", // deep crimson edges
+        shape: "crystal",
+        radius: 160, // bare core — same as the Voidspike Boss
+        maxSpeed: 45,
+        maxHealth: 50000,
+        maxEnergy: Infinity,
+        infiniteEnergy: true,
+        damage: 0, // no melee — fights purely at range
+        perceptionRadius: 950,
+        behaviour: new ShardBossBehaviour(),
+        faction: VOID_FACTION,
+        canEatFood: false, // cannot feed, but still heals from hearts
+        canPickupPowerups: false, // immune to every power-up
+        // Three concentric crusts (10k HP each). Their thicknesses sum to 160,
+        // so the armoured boss is 320 across — twice the bare core — and shrinks
+        // a third each time a crust shatters.
+        crusts: [
+          { hp: 10000, thickness: 52 }, // outermost
+          { hp: 10000, thickness: 53 },
+          { hp: 10000, thickness: 54 }, // innermost
+        ],
       });
     },
     canBeElite: false, // bosses are never elite

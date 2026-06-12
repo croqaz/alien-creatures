@@ -23,8 +23,10 @@ export function drawCreature(
   ctx.save();
   ctx.translate(x, y + bob);
 
-  // Rotation based on velocity
-  const angle = Math.atan2(velocity.y, velocity.x);
+  // Facing direction — rate-limited in Creature.updateFacing so the body
+  // pivots smoothly toward its heading instead of snapping/spinning when the
+  // velocity vector swings through zero mid-turn.
+  const angle = creature.facing;
 
   // Enraged aura: a big creature past half health (the boss in stage 2) pulses
   // a menacing red halo so its second phase reads at a glance.
@@ -50,6 +52,20 @@ export function drawCreature(
     const aura = ctx.createRadialGradient(0, 0, radius * 0.8, 0, 0, ar);
     aura.addColorStop(0, "rgba(255, 140, 0, 0.4)");
     aura.addColorStop(1, "rgba(255, 140, 0, 0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, ar, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Shard of Death aura: an icy-crimson halo so the crystal boss reads as a
+  // boss even at full health (its enraged red halo takes over in stage 2).
+  if (creature.species === "Shard of Death" && alive) {
+    const pulse = 1 + Math.sin(time * 6 + creature.id) * 0.05;
+    const ar = radius * 1.35 * pulse;
+    const aura = ctx.createRadialGradient(0, 0, radius * 0.8, 0, 0, ar);
+    aura.addColorStop(0, "rgba(120, 220, 245, 0.35)");
+    aura.addColorStop(1, "rgba(120, 220, 245, 0)");
     ctx.fillStyle = aura;
     ctx.beginPath();
     ctx.arc(0, 0, ar, 0, Math.PI * 2);
@@ -117,32 +133,46 @@ export function drawCreature(
     ctx.restore();
   }
 
+  // Crust shells (the Shard of Death): concentric crystalline rings around the
+  // core, each fading as it's chipped away. Drawn beneath the body so the core
+  // sits inside them; the boss physically shrinks as shells shatter and drop out.
+  if (creature.crusts.length > 0) {
+    drawCrusts(ctx, creature, time);
+  }
+
+  // Body draws at the bare core size — for an unarmoured creature that's just
+  // its radius; for a crust-bearing boss it's the core inside the shells.
+  const bodyR = creature.coreRadius;
+
   // Draw body
   switch (shape) {
     case "circle":
-      drawCircleBody(ctx, radius, color, accentColor);
+      drawCircleBody(ctx, bodyR, color, accentColor);
       break;
     case "oval":
-      drawOvalBody(ctx, radius, color, accentColor, angle);
+      drawOvalBody(ctx, bodyR, color, accentColor, angle);
       break;
     case "triangle":
-      drawTriangleBody(ctx, radius, color, accentColor, angle);
+      drawTriangleBody(ctx, bodyR, color, accentColor, angle);
       break;
     case "rounded-rect":
-      drawRoundedRectBody(ctx, radius, color, accentColor, angle);
+      drawRoundedRectBody(ctx, bodyR, color, accentColor, angle);
       break;
     case "spiked":
-      drawSpikedBody(ctx, radius, color, accentColor, time, creature.id);
+      drawSpikedBody(ctx, bodyR, color, accentColor, time, creature.id);
       break;
     case "pentagon":
-      drawPentagonBody(ctx, radius, color, accentColor, angle);
+      drawPentagonBody(ctx, bodyR, color, accentColor, angle);
+      break;
+    case "crystal":
+      drawCrystalBody(ctx, bodyR, color, accentColor, angle, time, creature.id);
       break;
   }
 
   // Eyes (look in movement direction)
   const speed = magnitude(velocity);
   const eyeAngle = speed > 5 ? angle : creature.id * 0.5; // idle gaze
-  drawEyes(ctx, radius, eyeAngle, shape === "triangle");
+  drawEyes(ctx, bodyR, eyeAngle, shape === "triangle");
 
   // Shield bubble: a pulsing translucent dome while the creature is invincible.
   if (creature.isShielded) {
@@ -325,6 +355,103 @@ function drawSpikedBody(
   ctx.strokeStyle = accent;
   ctx.lineWidth = 1.5;
   ctx.stroke();
+}
+
+/**
+ * A faceted crystal with a sharp point along its facing direction (the Shard of
+ * Death and its shardlings). Drawn tip-forward so the boss's laser reads as
+ * firing from the point; inner ridge lines give it a cut-gem sheen.
+ */
+function drawCrystalBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+  angle: number,
+  time: number,
+  id: number,
+) {
+  ctx.save();
+  ctx.rotate(angle);
+  // A subtle shimmer so the gem feels alive rather than a static silhouette.
+  const shimmer = 1 + Math.sin(time * 2 + id) * 0.03;
+  const tip = r * 1.3 * shimmer;
+  // Outline, tip toward +x (the facing direction).
+  const pts: [number, number][] = [
+    [tip, 0],
+    [r * 0.4, -r * 0.72],
+    [-r * 0.85, -r * 0.46],
+    [-r * 1.1, 0],
+    [-r * 0.85, r * 0.46],
+    [r * 0.4, r * 0.72],
+  ];
+  ctx.beginPath();
+  pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = Math.max(1.5, r * 0.02);
+  ctx.stroke();
+
+  // Facet ridges from the tip and back point to the shoulders — a cut-gem look.
+  ctx.strokeStyle = accent;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = Math.max(1, r * 0.012);
+  ctx.beginPath();
+  ctx.moveTo(tip, 0);
+  ctx.lineTo(r * 0.4, -r * 0.72);
+  ctx.moveTo(tip, 0);
+  ctx.lineTo(r * 0.4, r * 0.72);
+  ctx.moveTo(tip, 0);
+  ctx.lineTo(-r * 1.1, 0);
+  ctx.moveTo(-r * 1.1, 0);
+  ctx.lineTo(r * 0.4, -r * 0.72);
+  ctx.moveTo(-r * 1.1, 0);
+  ctx.lineTo(r * 0.4, r * 0.72);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/**
+ * Draw a creature's concentric crust shells (the Shard of Death's armour),
+ * innermost outward. Each ring is a translucent crystalline band whose brightness
+ * tracks its remaining HP, so a chipped shell visibly dims before it shatters and
+ * drops out (shrinking the body). Assumes the canvas is already translated to the
+ * creature's centre, as it is in `drawCreature`.
+ */
+function drawCrusts(
+  ctx: CanvasRenderingContext2D,
+  creature: Creature,
+  time: number,
+) {
+  // `crusts` is outermost-first; walk it in reverse to build radii from the core.
+  let inner = creature.coreRadius;
+  for (let i = creature.crusts.length - 1; i >= 0; i--) {
+    const crust = creature.crusts[i];
+    if (!crust) continue;
+    const outer = inner + crust.thickness;
+    const mid = (inner + outer) / 2;
+    const ratio = Math.max(0, crust.hp / crust.maxHp);
+    const pulse = 1 + Math.sin(time * 4 + i) * 0.03;
+
+    // Translucent fill across the band, brighter when intact.
+    ctx.beginPath();
+    ctx.arc(0, 0, outer * pulse, 0, Math.PI * 2);
+    ctx.arc(0, 0, inner * pulse, 0, Math.PI * 2, true);
+    ctx.fillStyle = `rgba(150, 225, 245, ${0.06 + 0.16 * ratio})`;
+    ctx.fill("evenodd");
+
+    // A crisp edge stroke that fades as the shell is chipped down.
+    ctx.beginPath();
+    ctx.arc(0, 0, mid * pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(214, 0, 90, ${0.25 + 0.55 * ratio})`;
+    ctx.lineWidth = crust.thickness * (0.5 + 0.5 * ratio);
+    ctx.stroke();
+
+    inner = outer;
+  }
 }
 
 function drawPentagonBody(

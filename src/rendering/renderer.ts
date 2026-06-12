@@ -8,12 +8,19 @@ import { Heart } from "../entities/heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
 import { Fireball } from "../entities/fireball";
 import { Arrow } from "../entities/arrow";
+import { LaserBeam } from "../entities/laser";
+import { Shockwave } from "../entities/shockwave";
 import { Wall } from "../entities/wall";
 import { drawCreature } from "./creature-renderer";
 import { drawSpawner } from "./spawner-renderer";
 import { drawFood } from "./food-renderer";
 import { drawHeart } from "./heart-renderer";
-import { drawFireball, drawArrow } from "./projectile-renderer";
+import {
+  drawFireball,
+  drawArrow,
+  drawLaser,
+  drawShockwave,
+} from "./projectile-renderer";
 import {
   drawShieldPowerup,
   drawSpeedPowerup,
@@ -75,6 +82,8 @@ export class Renderer {
     const swords: SwordPowerup[] = [];
     const fireballs: Fireball[] = [];
     const arrows: Arrow[] = [];
+    const lasers: LaserBeam[] = [];
+    const shockwaves: Shockwave[] = [];
     const spawners: Spawner[] = [];
     const creatures: Creature[] = [];
     const dead: Creature[] = [];
@@ -85,6 +94,10 @@ export class Renderer {
         if (e.isAlive) arrows.push(e);
       } else if (e instanceof Fireball) {
         if (e.isAlive) fireballs.push(e);
+      } else if (e instanceof LaserBeam) {
+        if (e.isAlive) lasers.push(e);
+      } else if (e instanceof Shockwave) {
+        if (e.isAlive) shockwaves.push(e);
       } else if (e instanceof Spawner) {
         // Checked before Creature: a Spawner is a Creature subclass.
         if (e.isAlive) spawners.push(e);
@@ -113,9 +126,13 @@ export class Renderer {
     for (const s of spawners) drawSpawner(ctx, s, time);
     for (const c of dead) drawCreature(ctx, c, time);
     for (const c of creatures) drawCreature(ctx, c, time);
-    // Projectiles draw on top of everything so they read as active threats.
+    // Projectiles and boss attacks draw on top of everything so they read as
+    // active threats. Shockwaves go down first (a ground-level pulse), then the
+    // beams and projectiles over them.
+    for (const w of shockwaves) drawShockwave(ctx, w, time);
     for (const fb of fireballs) drawFireball(ctx, fb, time);
     for (const a of arrows) drawArrow(ctx, a, time);
+    for (const l of lasers) drawLaser(ctx, l, time);
 
     // Selection ring: a pulsing dashed circle around the Select tool's pick.
     if (selected && selected.isAlive) {
