@@ -1,0 +1,1008 @@
+{
+  "version": 3,
+  "exportedAt": "2026-06-24T20:36:48.759Z",
+  "arena": {
+    "width": 1700,
+    "height": 2500
+  },
+  "time": 2.2439999999999922,
+  "walls": [
+    {
+      "cx": 1,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 0,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 2,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 3,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 4,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 5,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 6,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 7,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 42,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 41,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 40,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 38,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 39,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 37,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 36,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 35,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 8,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 34,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 33,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 9,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 32,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 31,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 30,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 29,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 10,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 11,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 12,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 13,
+      "cy": 9,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 10,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 10,
+      "type": "stone"
+    },
+    {
+      "cx": 42,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 41,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 40,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 39,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 38,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 37,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 36,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 35,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 34,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 33,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 32,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 31,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 30,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 29,
+      "cy": 52,
+      "type": "stone"
+    },
+    {
+      "cx": 0,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 1,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 2,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 3,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 4,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 5,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 6,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 7,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 8,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 9,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 10,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 11,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 12,
+      "cy": 53,
+      "type": "stone"
+    },
+    {
+      "cx": 13,
+      "cy": 52,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 51,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 50,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 48,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 49,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 51,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 50,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 49,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 48,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 47,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 46,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 45,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 44,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 43,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 47,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 46,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 45,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 44,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 43,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 42,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 41,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 40,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 42,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 41,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 40,
+      "type": "stone"
+    },
+    {
+      "cx": 29,
+      "cy": 39,
+      "type": "stone"
+    },
+    {
+      "cx": 13,
+      "cy": 39,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 11,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 12,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 13,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 14,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 15,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 16,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 17,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 18,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 19,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 20,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 21,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 22,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 23,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 24,
+      "type": "stone"
+    },
+    {
+      "cx": 15,
+      "cy": 25,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 26,
+      "type": "stone"
+    },
+    {
+      "cx": 13,
+      "cy": 26,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 11,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 12,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 13,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 14,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 15,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 16,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 17,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 18,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 19,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 20,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 21,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 22,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 23,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 24,
+      "type": "stone"
+    },
+    {
+      "cx": 27,
+      "cy": 25,
+      "type": "stone"
+    },
+    {
+      "cx": 28,
+      "cy": 26,
+      "type": "stone"
+    },
+    {
+      "cx": 29,
+      "cy": 26,
+      "type": "stone"
+    },
+    {
+      "cx": 30,
+      "cy": 27,
+      "type": "stone"
+    },
+    {
+      "cx": 12,
+      "cy": 27,
+      "type": "stone"
+    },
+    {
+      "cx": 12,
+      "cy": 38,
+      "type": "stone"
+    },
+    {
+      "cx": 12,
+      "cy": 37,
+      "type": "stone"
+    },
+    {
+      "cx": 30,
+      "cy": 38,
+      "type": "stone"
+    },
+    {
+      "cx": 30,
+      "cy": 37,
+      "type": "stone"
+    },
+    {
+      "cx": 14,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 15,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 16,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 17,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 18,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 19,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 20,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 21,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 22,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 23,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 24,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 25,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 26,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 27,
+      "cy": 40,
+      "type": "dirt"
+    },
+    {
+      "cx": 28,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 15,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 16,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 17,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 18,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 19,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 20,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 21,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 22,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 24,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 23,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 25,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 26,
+      "cy": 25,
+      "type": "dirt"
+    },
+    {
+      "cx": 27,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 13,
+      "cy": 38,
+      "type": "dirt"
+    },
+    {
+      "cx": 29,
+      "cy": 38,
+      "type": "dirt"
+    },
+    {
+      "cx": 28,
+      "cy": 27,
+      "type": "dirt"
+    },
+    {
+      "cx": 29,
+      "cy": 27,
+      "type": "dirt"
+    },
+    {
+      "cx": 14,
+      "cy": 27,
+      "type": "dirt"
+    },
+    {
+      "cx": 13,
+      "cy": 27,
+      "type": "dirt"
+    },
+    {
+      "cx": 16,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 17,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 18,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 19,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 20,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 21,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 22,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 23,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 24,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 25,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 26,
+      "cy": 26,
+      "type": "dirt"
+    },
+    {
+      "cx": 27,
+      "cy": 27,
+      "type": "dirt"
+    },
+    {
+      "cx": 15,
+      "cy": 27,
+      "type": "dirt"
+    },
+    {
+      "cx": 14,
+      "cy": 38,
+      "type": "dirt"
+    },
+    {
+      "cx": 15,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 16,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 17,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 18,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 19,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 20,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 21,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 22,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 23,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 24,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 25,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 26,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 27,
+      "cy": 39,
+      "type": "dirt"
+    },
+    {
+      "cx": 28,
+      "cy": 38,
+      "type": "dirt"
+    }
+  ],
+  "entities": [
+    {
+      "kind": "spawner",
+      "species": "Defender",
+      "pos": {
+        "x": 156.1023622047244,
+        "y": 2357.283464566929
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Crawler",
+      "pos": {
+        "x": 1546.3582677165355,
+        "y": 2354.822834645669
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Spiker",
+      "pos": {
+        "x": 161.0236220472441,
+        "y": 155.01968503936996
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Lurker",
+      "pos": {
+        "x": 1553.7401574803148,
+        "y": 155.01968503936996
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "shield",
+      "pos": {
+        "x": 252.06692913385814,
+        "y": 748.0314960629921
+      },
+      "duration": 10000,
+      "color": "#3cf"
+    },
+    {
+      "kind": "speed",
+      "pos": {
+        "x": 1455.3149606299212,
+        "y": 752.9527559055118
+      },
+      "multiplier": 2,
+      "duration": 15000,
+      "color": "#fc3"
+    },
+    {
+      "kind": "sword",
+      "pos": {
+        "x": 249.60629921259851,
+        "y": 1948.818897637795
+      },
+      "multiplier": 1.5,
+      "duration": 15000,
+      "color": "#d66"
+    }
+  ]
+}

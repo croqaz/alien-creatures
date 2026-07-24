@@ -5,6 +5,7 @@ import { Creature } from "../entities/creature";
 import { Spawner } from "../entities/spawner";
 import { CreativeSpawner } from "../entities/creative-spawner";
 import { Food } from "../entities/food";
+import { TrapLure } from "../entities/trap-lure";
 import { Heart } from "../entities/heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
 import { Fireball } from "../entities/fireball";
@@ -18,8 +19,8 @@ import { drawCreativeSpawner } from "./creative-spawner-renderer";
 import { drawFood } from "./food-renderer";
 import { drawHeart } from "./heart-renderer";
 import {
-  drawFireball,
   drawArrow,
+  drawFireball,
   drawLaser,
   drawShockwave,
 } from "./projectile-renderer";
@@ -65,19 +66,38 @@ export class Renderer {
     // Draw arena
     this.arena.draw(ctx);
 
-    // Draw walls (beneath food and creatures)
+    // Draw blocks (beneath food and creatures). Stone is the old slate-grey
+    // wall; dirt is an earthy brown. A block that's been dug into darkens and
+    // shows a thin damage bar so its remaining health reads at a glance.
     for (const w of walls) {
       const x = w.position.x - w.size / 2;
       const y = w.position.y - w.size / 2;
-      ctx.fillStyle = "#3a3a52";
+      const isDirt = w.type === "dirt";
+      ctx.fillStyle = isDirt ? "#6b4a2b" : "#3a3a52";
       ctx.fillRect(x, y, w.size, w.size);
-      ctx.strokeStyle = "#5a5a7a";
+      ctx.strokeStyle = isDirt ? "#8a6238" : "#5a5a7a";
       ctx.lineWidth = 2;
       ctx.strokeRect(x + 1, y + 1, w.size - 2, w.size - 2);
+
+      const ratio = w.hp / w.maxHp;
+      if (ratio < 1) {
+        // Darkening shroud over the chewed-away portion.
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * (1 - ratio)})`;
+        ctx.fillRect(x, y, w.size, w.size);
+        // Damage bar hugging the bottom edge of the tile.
+        const bw = w.size - 6;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(x + 3, y + w.size - 6, bw, 3);
+        ctx.fillStyle = ratio > 0.5 ? "#6c6" : ratio > 0.25 ? "#cc4" : "#c54";
+        ctx.fillRect(x + 3, y + w.size - 6, bw * ratio, 3);
+      }
     }
 
     // Sort: pickups (food/hearts) first, then creatures (so creatures draw on top)
     const foods: Food[] = [];
+    // A Trap's bait sits inside its body, so it's drawn after the creatures
+    // (over the maw) rather than with the other food beneath them.
+    const trapLures: TrapLure[] = [];
     const hearts: Heart[] = [];
     const shields: ShieldPowerup[] = [];
     const speeds: SpeedPowerup[] = [];
@@ -107,6 +127,9 @@ export class Renderer {
       } else if (e instanceof Spawner) {
         // Checked before Creature: a Spawner is a Creature subclass.
         if (e.isAlive) spawners.push(e);
+      } else if (e instanceof TrapLure) {
+        // Checked before Food: a TrapLure is a Food subclass.
+        if (e.isAlive) trapLures.push(e);
       } else if (e instanceof Food) {
         if (e.isAlive) foods.push(e);
       } else if (e instanceof Heart) {
@@ -133,6 +156,8 @@ export class Renderer {
     for (const s of creativeSpawners) drawCreativeSpawner(ctx, s, time);
     for (const c of dead) drawCreature(ctx, c, time);
     for (const c of creatures) drawCreature(ctx, c, time);
+    // Trap bait sits on top of the Trap's body so it's visible inside the maw.
+    for (const l of trapLures) drawFood(ctx, l, time);
     // Projectiles and boss attacks draw on top of everything so they read as
     // active threats. Shockwaves go down first (a ground-level pulse), then the
     // beams and projectiles over them.

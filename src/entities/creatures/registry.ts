@@ -10,6 +10,7 @@ import { BossBehaviour } from "../../behaviours/boss";
 import { ChargerBehaviour, TELEPORT_RANGE } from "../../behaviours/charger";
 import { CatapultBehaviour } from "../../behaviours/catapult";
 import { ShardBossBehaviour } from "../../behaviours/shard-boss";
+import { TrapBehaviour } from "../../behaviours/trap";
 
 /**
  * Allegiance groups shared across species (see `Creature.faction`). Members of
@@ -281,6 +282,41 @@ const speciesList: SpeciesDef[] = [
     canBeElite: true, // boss minion
   },
   {
+    name: "Trap",
+    description:
+      "Void ambusher — lies still baiting food in its toothy maw, then snaps and chases the unwary",
+    create(pos) {
+      return new Creature(pos, {
+        species: "Trap",
+        color: "#80808a", // dull grey
+        accentColor: "#3c3c44",
+        shape: "trap",
+        radius: 22, // a Crawler's bulk
+        maxSpeed: 45, // chases as fast as a Crawler
+        maxHealth: 160,
+        maxEnergy: 100,
+        infiniteEnergy: true, // lies in wait indefinitely — never starves
+        damage: 0, // looks harmless; TrapBehaviour bites directly when it springs
+        perceptionRadius: 360, // sees far enough to chase, but only snaps up close
+        behaviour: new TrapBehaviour(),
+        faction: VOID_FACTION,
+        canEatFood: false, // never devours its own bait
+      });
+    },
+    // A special ambusher whose bite is a fixed burst, not its `damage` stat —
+    // the variant rolls (Elite/Archer/Healer) don't apply, so opt out.
+    canBeElite: false,
+    canBeArcher: false,
+    canBeHealer: false,
+  },
+  {
+    name: "Death Shardling",
+    description:
+      "Loyal minion of the Shard of Death — a fast crystal splinter that attacks all outsiders",
+    create: createDeathShardling,
+    canBeElite: true, // boss minion
+  },
+  {
     name: "Voidspike Boss",
     description:
       "Colossal black spiker — infinite energy, fireballs, summons spikers at half health",
@@ -363,13 +399,6 @@ const speciesList: SpeciesDef[] = [
     canBeArcher: false, // nor archers — they have their own attacks
     canBeHealer: false, // nor healers — they're already special
     canSpawn: false, // and never produced by a spawner tower
-  },
-  {
-    name: "Death Shardling",
-    description:
-      "Loyal minion of the Shard of Death — a fast crystal splinter that attacks all outsiders",
-    create: createDeathShardling,
-    canBeElite: true, // boss minion
   },
   {
     name: "Shard of Death",

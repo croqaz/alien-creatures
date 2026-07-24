@@ -1,5 +1,5 @@
 import { Vec2 } from "../utils/vec2";
-import { Entity, World, generateId } from "./entity";
+import { Entity, generateId, World } from "./entity";
 
 export class Food implements Entity {
   id: number;

@@ -6,9 +6,10 @@ import {
   type ProgramStep,
 } from "../entities/creative-spawner";
 import { Food } from "../entities/food";
+import { TrapLure } from "../entities/trap-lure";
 import { Heart } from "../entities/heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "../entities/powerup";
-import { WALL_SIZE } from "../entities/wall";
+import { blockMaxHp, type BlockType, WALL_SIZE } from "../entities/wall";
 import { getSpecies } from "../entities/creatures/registry";
 
 /**
@@ -24,8 +25,10 @@ import { getSpecies } from "../entities/creatures/registry";
  */
 
 // v2 adds the "creative" entity (Creative Spawner with its scripted program).
-// v1 files still load — they simply contain none.
-export const MAP_FORMAT_VERSION = 2;
+// v3 gives every wall a block type (stone/dirt) and health. v1/v2 walls had
+// neither — they load as full-health stone (the old impassable wall). Older
+// files still load; each new version is purely additive.
+export const MAP_FORMAT_VERSION = 3;
 
 interface Vec2J {
   x: number;
@@ -116,12 +119,21 @@ type EntityJ =
   | SpeedJ
   | SwordJ;
 
+interface WallJ {
+  cx: number;
+  cy: number;
+  /** Absent in v1/v2 files — those walls load as stone. */
+  type?: BlockType;
+  /** Current health; absent means full (so undamaged blocks stay compact in the file). */
+  hp?: number;
+}
+
 interface MapFile {
   version: number;
   exportedAt: string;
   arena: { width: number; height: number };
   time: number;
-  walls: { cx: number; cy: number }[];
+  walls: WallJ[];
   entities: EntityJ[];
 }
 
@@ -134,6 +146,10 @@ export function serializeMap(game: Game): string {
   const entities: EntityJ[] = [];
 
   for (const e of game.entities) {
+    // A Trap's bait is owned and transient: it's re-created by the Trap on load,
+    // so persisting it would leave a stray static morsel behind. Skip it (it's a
+    // Food subclass, so this must come before the Food branch below).
+    if (e instanceof TrapLure) continue;
     // CreativeSpawner and Spawner both extend Creature, so test them first.
     if (e instanceof CreativeSpawner) {
       if (!e.isAlive) continue;
@@ -212,7 +228,14 @@ export function serializeMap(game: Game): string {
     exportedAt: new Date().toISOString(),
     arena: { width: game.arenaWidth, height: game.arenaHeight },
     time: game.time,
-    walls: game.walls.all().map((w) => ({ cx: w.cx, cy: w.cy })),
+    // Persist each block's type, plus its health only when it's been dug into
+    // (full-health blocks stay compact — most of a map is undamaged stone).
+    walls: game.walls.all().map((w) => ({
+      cx: w.cx,
+      cy: w.cy,
+      type: w.type,
+      ...(w.hp < w.maxHp ? { hp: w.hp } : {}),
+    })),
     entities,
   };
   return JSON.stringify(file, null, 2);
@@ -226,12 +249,23 @@ export function serializeMap(game: Game): string {
  * the document parses and validates).
  */
 export function deserializeMap(game: Game, json: string): void {
-  let file: MapFile;
+  let parsed: unknown;
   try {
-    file = JSON.parse(json) as MapFile;
+    parsed = JSON.parse(json);
   } catch {
     throw new Error("not valid JSON");
   }
+  loadMapDocument(game, parsed);
+}
+
+/**
+ * Load an already-parsed map document (from a file, or a bundled template) into
+ * the game. Same validation and restore semantics as deserializeMap; kept
+ * separate so templates can pass their imported JSON object directly without a
+ * stringify/parse round-trip. Throws on malformed input before touching the map.
+ */
+export function loadMapDocument(game: Game, doc: unknown): void {
+  const file = doc as MapFile;
   if (!file || typeof file !== "object") {
     throw new Error("not a map file");
   }
@@ -247,15 +281,42 @@ export function deserializeMap(game: Game, json: string): void {
   }
 
   game.clear();
+
+  // Restore the arena dimensions so a map saved at any size — a built-in
+  // size/shape or a hand-tweaked custom one — comes back at exactly its
+  // original proportions. Files without a valid arena block (older exports)
+  // keep the current arena size.
+  const arena = file.arena;
+  if (
+    arena &&
+    typeof arena.width === "number" &&
+    typeof arena.height === "number" &&
+    arena.width > 0 &&
+    arena.height > 0
+  ) {
+    game.resizeArena(arena.width, arena.height);
+  }
+
   game.time = typeof file.time === "number" ? file.time : 0;
 
   for (const w of file.walls) {
     // placeAt takes a world position and snaps it to the tile, so aim at the
-    // cell centre to land back in cell (cx, cy).
-    game.walls.placeAt({
-      x: w.cx * WALL_SIZE + WALL_SIZE / 2,
-      y: w.cy * WALL_SIZE + WALL_SIZE / 2,
-    });
+    // cell centre to land back in cell (cx, cy). A missing type (v1/v2 file)
+    // means a classic impassable wall — now a full-health stone block. A saved
+    // hp restores a partly-dug block; clamp it to the type's max.
+    const type: BlockType = w.type === "dirt" ? "dirt" : "stone";
+    const hp =
+      typeof w.hp === "number"
+        ? Math.max(1, Math.min(w.hp, blockMaxHp(type)))
+        : undefined;
+    game.walls.placeAt(
+      {
+        x: w.cx * WALL_SIZE + WALL_SIZE / 2,
+        y: w.cy * WALL_SIZE + WALL_SIZE / 2,
+      },
+      type,
+      hp,
+    );
   }
 
   for (const ent of file.entities) {
@@ -310,8 +371,9 @@ function sanitizeProgram(raw: unknown): ProgramStep[] {
     if (!s || typeof s !== "object") continue;
     const step = s as Record<string, unknown>;
     if (step.kind === "round") {
-      if (typeof step.species !== "string" || !getSpecies(step.species))
+      if (typeof step.species !== "string" || !getSpecies(step.species)) {
         continue;
+      }
       const count = Math.floor(Number(step.count));
       if (!Number.isFinite(count) || count < 1) continue;
       out.push({ kind: "round", species: step.species, count });

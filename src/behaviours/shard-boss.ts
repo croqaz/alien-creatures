@@ -1,8 +1,8 @@
-import { Vec2, vec, sub, normalize, scale, distance } from "../utils/vec2";
+import { distance, normalize, scale, sub, vec, Vec2 } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
-import { LaserBeam, LASER_LENGTH } from "../entities/laser";
+import { LASER_LENGTH, LaserBeam } from "../entities/laser";
 import { Shockwave } from "../entities/shockwave";
 import {
   createDeathShardling,

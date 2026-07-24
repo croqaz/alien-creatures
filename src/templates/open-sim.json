@@ -1,0 +1,66 @@
+{
+  "version": 3,
+  "exportedAt": "2026-06-24T20:30:41.274Z",
+  "arena": {
+    "width": 5600,
+    "height": 5600
+  },
+  "time": 1.920399999999997,
+  "walls": [],
+  "entities": [
+    {
+      "kind": "spawner",
+      "species": "Blob",
+      "pos": {
+        "x": 259.05511811023644,
+        "y": 5357.48031496063
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Floater",
+      "pos": {
+        "x": 5357.48031496063,
+        "y": 5362.992125984252
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Crawler",
+      "pos": {
+        "x": 259.05511811023644,
+        "y": 253.54330708661428
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Defender",
+      "pos": {
+        "x": 5368.503937007873,
+        "y": 253.54330708661428
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Spiker",
+      "pos": {
+        "x": 2551.968503937008,
+        "y": 5374.015748031496
+      },
+      "rate": 0.1
+    },
+    {
+      "kind": "spawner",
+      "species": "Lurker",
+      "pos": {
+        "x": 2761.4173228346453,
+        "y": 154.33070866141742
+      },
+      "rate": 0.1
+    }
+  ]
+}

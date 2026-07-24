@@ -1,8 +1,16 @@
 export class Arena {
   constructor(
-    public readonly width: number,
-    public readonly height: number,
+    public width: number,
+    public height: number,
   ) {}
+
+  /** Resize the play field in place, so existing references (the renderer) stay
+   *  valid. Callers must rebuild anything sized off the old bounds (the spatial
+   *  grid) themselves — see Game.resizeArena. */
+  resize(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+  }
 
   draw(ctx: CanvasRenderingContext2D) {
     // Background

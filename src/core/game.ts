@@ -7,6 +7,7 @@ import { Entity, World } from "../entities/entity";
 import { Creature } from "../entities/creature";
 import { WallGrid } from "../entities/wall";
 import { Vec2 } from "../utils/vec2";
+import { DEFAULT_DIMENSIONS, type MapDimensions } from "./map-size";
 
 export class Game implements World {
   camera = new Camera();
@@ -24,6 +25,7 @@ export class Game implements World {
 
   private renderer: Renderer;
   private grid: SpatialGrid;
+  private canvas: HTMLCanvasElement;
   private lastTime = 0;
   private statsTimer = 0;
   private onStatsUpdate: (() => void) | null = null;
@@ -35,16 +37,21 @@ export class Game implements World {
     return this.arena.height;
   }
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.arena = new Arena(4000, 3000);
+  constructor(
+    canvas: HTMLCanvasElement,
+    size: MapDimensions = DEFAULT_DIMENSIONS,
+  ) {
+    this.canvas = canvas;
+    this.arena = new Arena(size.width, size.height);
     this.input = new Input(canvas, this.camera);
     const ctx = canvas.getContext("2d")!;
     this.renderer = new Renderer(ctx, canvas, this.camera, this.arena);
     this.grid = new SpatialGrid(this.arena.width, this.arena.height, 200);
 
-    // Center camera on arena
-    this.camera.centerOn(
-      { x: this.arena.width / 2, y: this.arena.height / 2 },
+    // Frame the whole arena so the chosen map is fully visible on startup.
+    this.camera.fitTo(
+      this.arena.width,
+      this.arena.height,
       canvas.clientWidth,
       canvas.clientHeight,
     );
@@ -52,6 +59,23 @@ export class Game implements World {
 
   addEntity(entity: Entity) {
     this.entities.push(entity);
+  }
+
+  /**
+   * Resize the arena to new bounds — used when importing a map (or loading a
+   * template) saved at a different size, so the layout is restored exactly.
+   * Rebuilds the spatial grid for the new bounds and refits the camera so the
+   * whole map is framed.
+   */
+  resizeArena(width: number, height: number) {
+    this.arena.resize(width, height);
+    this.grid = new SpatialGrid(width, height, 200);
+    this.camera.fitTo(
+      width,
+      height,
+      this.canvas.clientWidth,
+      this.canvas.clientHeight,
+    );
   }
 
   /**

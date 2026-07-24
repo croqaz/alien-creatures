@@ -1,6 +1,6 @@
 import { Fireball } from "../entities/fireball";
 import { Arrow } from "../entities/arrow";
-import { LaserBeam, LASER_LENGTH, LASER_HALF_WIDTH } from "../entities/laser";
+import { LASER_HALF_WIDTH, LASER_LENGTH, LaserBeam } from "../entities/laser";
 import { Shockwave } from "../entities/shockwave";
 
 /** A glowing, flickering ember with a hot white core and a soft orange halo. */

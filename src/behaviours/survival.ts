@@ -1,4 +1,4 @@
-import { Vec2, vec, sub, add, normalize, scale, distance } from "../utils/vec2";
+import { add, distance, normalize, scale, sub, vec, Vec2 } from "../utils/vec2";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
 import { Food } from "../entities/food";

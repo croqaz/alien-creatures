@@ -1,8 +1,8 @@
-import { Vec2, vec } from "../utils/vec2";
+import { vec, Vec2 } from "../utils/vec2";
 import { Creature } from "./creature";
 import type { World } from "./entity";
 import type { Behaviour } from "../behaviours/behaviour";
-import { getSpecies, createWithVariant } from "./creatures/registry";
+import { createWithVariant, getSpecies } from "./creatures/registry";
 
 /** The spawner never moves and never acts on its own — its behaviour is a no-op. */
 const IDLE_BEHAVIOUR: Behaviour = {

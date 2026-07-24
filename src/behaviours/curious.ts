@@ -1,8 +1,8 @@
-import { Vec2, vec, distance } from "../utils/vec2";
+import { distance, vec, Vec2 } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
-import { survivalDrive, isHungry } from "./survival";
+import { isHungry, survivalDrive } from "./survival";
 
 export class CuriousBehaviour implements Behaviour {
   readonly name = "Curious";

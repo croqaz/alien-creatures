@@ -167,12 +167,18 @@ export function drawCreature(
     case "crystal":
       drawCrystalBody(ctx, bodyR, color, accentColor, angle, time, creature.id);
       break;
+    case "trap":
+      drawTrapBody(ctx, bodyR, color, accentColor, angle, time, creature.id);
+      break;
   }
 
-  // Eyes (look in movement direction)
-  const speed = magnitude(velocity);
-  const eyeAngle = speed > 5 ? angle : creature.id * 0.5; // idle gaze
-  drawEyes(ctx, bodyR, eyeAngle, shape === "triangle");
+  // Eyes (look in movement direction). The Trap draws its own eyes flanking its
+  // maw inside drawTrapBody, so it skips the generic pair here.
+  if (shape !== "trap") {
+    const speed = magnitude(velocity);
+    const eyeAngle = speed > 5 ? angle : creature.id * 0.5; // idle gaze
+    drawEyes(ctx, bodyR, eyeAngle, shape === "triangle");
+  }
 
   // Shield bubble: a pulsing translucent dome while the creature is invincible.
   if (creature.isShielded) {
@@ -479,6 +485,86 @@ function drawPentagonBody(
   ctx.strokeStyle = accent;
   ctx.lineWidth = 1.5;
   ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * The Trap: a round grey head whose front opens into a dark maw ringed with big
+ * sharp white teeth, facing its heading (the bait sits just inside it). A faint
+ * idle "breathing" flexes the jaws so it reads as alive while it lies in wait.
+ * Draws its own beady eyes flanking the mouth, so the caller skips drawEyes.
+ */
+function drawTrapBody(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  color: string,
+  accent: string,
+  angle: number,
+  time: number,
+  id: number,
+) {
+  ctx.save();
+  ctx.rotate(angle);
+
+  // Grey skull.
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Gaping maw: a dark wedge opening toward the facing (+x) side, breathing.
+  const jaw = 0.85 + Math.sin(time * 3 + id) * 0.08; // half-angle of the opening
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.arc(0, 0, r, -jaw, jaw);
+  ctx.closePath();
+  ctx.fillStyle = "#16161a";
+  ctx.fill();
+
+  // Big sharp teeth: white triangles around the rim of the maw, pointing inward.
+  const teeth = 7;
+  ctx.fillStyle = "#f2f2f5";
+  ctx.strokeStyle = "#c2c2cc";
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < teeth; i++) {
+    const t = -jaw + ((2 * jaw) / (teeth - 1)) * i;
+    const cos = Math.cos(t);
+    const sin = Math.sin(t);
+    const tipR = r * 0.5; // how far the tooth juts in toward the throat
+    const halfBase = ((2 * jaw * r) / teeth) * 0.34; // base half-width along rim
+    const rimX = cos * r;
+    const rimY = sin * r;
+    const tipX = cos * tipR;
+    const tipY = sin * tipR;
+    // Unit tangent at the rim, to spread the tooth's base.
+    const tx = -sin;
+    const ty = cos;
+    ctx.beginPath();
+    ctx.moveTo(rimX + tx * halfBase, rimY + ty * halfBase);
+    ctx.lineTo(rimX - tx * halfBase, rimY - ty * halfBase);
+    ctx.lineTo(tipX, tipY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Two beady eyes flanking the maw, up on the head.
+  for (const sign of [-1, 1]) {
+    const ex = r * 0.05;
+    const ey = sign * r * 0.62;
+    ctx.beginPath();
+    ctx.arc(ex, ey, r * 0.16, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ex + r * 0.05, ey, r * 0.08, 0, Math.PI * 2);
+    ctx.fillStyle = "#111";
+    ctx.fill();
+  }
+
   ctx.restore();
 }
 

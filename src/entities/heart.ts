@@ -1,5 +1,5 @@
 import { Vec2 } from "../utils/vec2";
-import { Entity, World, generateId } from "./entity";
+import { Entity, generateId, World } from "./entity";
 
 /**
  * A static healing pickup. Any creature that touches it is healed by `healing`

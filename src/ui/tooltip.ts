@@ -33,12 +33,15 @@ export class Tooltip {
       this.el.style.left = `${mouseScreenX + 14}px`;
       this.el.style.top = `${mouseScreenY + 14}px`;
       const badges: string[] = [];
-      if (closest.isShielded)
+      if (closest.isShielded) {
         badges.push(`<span style="color:#6cf">🛡 Shielded</span>`);
-      if (closest.isSpedUp)
+      }
+      if (closest.isSpedUp) {
         badges.push(`<span style="color:#fc3">⚡ Fast</span>`);
-      if (closest.isArmed)
+      }
+      if (closest.isArmed) {
         badges.push(`<span style="color:#f66">⚔ Armed</span>`);
+      }
       const status = badges.length ? `<br>${badges.join(" &nbsp; ")}` : "";
       const energy = closest.infiniteEnergy
         ? "∞"

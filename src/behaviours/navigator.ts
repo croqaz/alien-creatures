@@ -1,12 +1,12 @@
 import {
-  Vec2,
-  vec,
   add,
-  sub,
-  scale,
-  normalize,
   distance,
   magnitude,
+  normalize,
+  scale,
+  sub,
+  vec,
+  Vec2,
 } from "../utils/vec2";
 import type { Creature } from "../entities/creature";
 import type { World } from "../entities/entity";
@@ -39,6 +39,14 @@ export class Navigator {
   private lastPlan = -Infinity;
 
   /**
+   * True when the most recent `seek` found no route to its goal at all (the
+   * goal is walled off — e.g. food outside a sealed enclosure). The creature
+   * reads this to roam instead of grinding straight into the barrier. Reset on
+   * any seek that has a clear shot or a real path.
+   */
+  unreachable = false;
+
+  /**
    * Desired velocity (magnitude `speed`, defaulting to the creature's max) that
    * moves toward `goal` while avoiding walls.
    */
@@ -46,6 +54,7 @@ export class Navigator {
     const spd = speed ?? creature.maxSpeed;
     // Tell wall avoidance where we're headed so it stands down on final approach.
     creature.steerTarget = { ...goal };
+    this.unreachable = false; // assume reachable until A* proves otherwise
     const toGoal = sub(goal, creature.position);
     const goalDist = magnitude(toGoal);
     if (goalDist < 1e-3) return vec(0, 0);
@@ -62,8 +71,11 @@ export class Navigator {
 
     this.ensurePath(creature, goal, world);
     if (this.path.length === 0) {
-      // No route found — head roughly toward the goal and let the creature's
-      // own reactive wall-avoidance try to slip around.
+      // No route found — the goal is walled off. Flag it so the creature roams
+      // rather than grinding straight into the barrier (which made trapped
+      // creatures orbit and clump). Still return a heading toward the goal for
+      // callers that ignore the flag.
+      this.unreachable = true;
       return scale(toGoal, spd / goalDist);
     }
 
@@ -111,6 +123,7 @@ export class Navigator {
     ) {
       this.path = [];
       this.goal = null;
+      this.unreachable = false;
       return scale(away, spd);
     }
 

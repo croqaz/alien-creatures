@@ -1,8 +1,8 @@
 import type { Game } from "../core/game";
 import {
-  getSpeciesList,
-  getSpecies,
   createWithVariant,
+  getSpecies,
+  getSpeciesList,
   type SpeciesDef,
 } from "../entities/creatures/registry";
 import { Food } from "../entities/food";
@@ -12,19 +12,15 @@ import { Creature } from "../entities/creature";
 import { Spawner } from "../entities/spawner";
 import { CreativeSpawner } from "../entities/creative-spawner";
 import type { Entity } from "../entities/entity";
-import { serializeMap, deserializeMap } from "../core/map-io";
-import { Vec2, randomInRect, distance } from "../utils/vec2";
+import { deserializeMap, serializeMap } from "../core/map-io";
+import { distance, randomInRect, Vec2 } from "../utils/vec2";
+import { type BlockType, WALL_SIZE } from "../entities/wall";
 
 /** Which spawn tab is showing — drives what Place mode drops. */
 type Tab = "creatures" | "objects";
 /** The placeable object kinds offered in the Objects tab's selector. */
 type ObjectKind =
-  | "wall"
-  | "shield"
-  | "speed"
-  | "sword"
-  | "spawner"
-  | "creative";
+  "stone" | "dirt" | "shield" | "speed" | "sword" | "spawner" | "creative";
 /**
  * The active map-click tool. Exactly one is active at a time:
  *  - select: highlight/inspect the creature under the cursor
@@ -98,25 +94,45 @@ export class Panel {
     worldPos: Vec2,
     make: (pos: Vec2) => Entity & { radius: number },
   ) {
+    // A square brush drops one power-up per cell (subject to the checks below).
+    for (const o of this.brushCells("square")) {
+      this.placeOnePowerup({ x: worldPos.x + o.x, y: worldPos.y + o.y }, make);
+    }
+  }
+
+  /** Drop a single power-up at `pos` unless it's walled or stacked on another. */
+  private placeOnePowerup(
+    pos: Vec2,
+    make: (pos: Vec2) => Entity & { radius: number },
+  ) {
     const r = 16;
-    if (this.game.walls.overlaps(worldPos, r)) return;
+    if (this.game.walls.overlaps(pos, r)) return;
     for (const e of this.game.entities) {
       if (
         (e instanceof ShieldPowerup ||
           e instanceof SpeedPowerup ||
           e instanceof SwordPowerup) &&
         e.isAlive &&
-        distance(worldPos, e.position) < e.radius * 2
+        distance(pos, e.position) < e.radius * 2
       ) {
         return;
       }
     }
-    this.game.addEntity(make({ ...worldPos }));
+    this.game.addEntity(make({ ...pos }));
   }
 
-  /** Stamp a wall at `worldPos` and clear anything now buried inside it. */
-  private placeWall(worldPos: Vec2) {
-    this.game.walls.placeAt(worldPos);
+  /**
+   * Stamp a block of `type` at `worldPos` and clear anything now buried inside
+   * it. The brush paints an N×N square of cells centred on the cursor (N is the
+   * odd brush size 1–9), so a single click/drag can lay down thick walls.
+   */
+  private placeBlock(worldPos: Vec2, type: BlockType) {
+    for (const o of this.brushCells("square")) {
+      this.game.walls.placeAt(
+        { x: worldPos.x + o.x, y: worldPos.y + o.y },
+        type,
+      );
+    }
     // Remove any food/hearts/power-ups now buried in the wall so nothing
     // chases the unreachable.
     for (const e of this.game.entities) {
@@ -134,31 +150,48 @@ export class Panel {
     }
   }
 
-  /** Place the selected creature species at the click position (if not walled). */
+  /**
+   * Place the selected creature species at the click. The brush spreads
+   * creatures in an N×N *diamond* (Manhattan reach), so 1/3/5/7/9 drop 1/5/13/
+   * 25/41 creatures in a "+" and ever-rounder cluster.
+   */
   private placeCreatureAt(worldPos: Vec2) {
     const species = getSpecies(this.speciesSelect.value);
     if (!species) return;
+    for (const o of this.brushCells("diamond")) {
+      this.placeOneCreature(species, {
+        x: worldPos.x + o.x,
+        y: worldPos.y + o.y,
+      });
+    }
+  }
+
+  /** Drop a single creature of `species` at `pos`, unless walled or stacked. */
+  private placeOneCreature(species: SpeciesDef, pos: Vec2) {
     // Don't drop a creature inside a wall — give it body-sized clearance.
-    if (this.game.walls.overlaps(worldPos, 24)) return;
+    if (this.game.walls.overlaps(pos, 24)) return;
     // Don't pile up: skip if a living creature already sits at this spot, so a
     // click-drag paints a tidy spread rather than a stack (matches power-ups).
     for (const e of this.game.entities) {
       if (
         e instanceof Creature &&
         e.isAlive &&
-        distance(worldPos, e.position) < e.radius
+        distance(pos, e.position) < e.radius
       ) {
         return;
       }
     }
-    this.game.addEntity(this.makeCreature(species, { ...worldPos }));
+    this.game.addEntity(this.makeCreature(species, { ...pos }));
   }
 
   /** Place the object kind currently chosen in the Objects tab at the click. */
   private placeObjectAt(worldPos: Vec2) {
     switch (this.objectSelect.value as ObjectKind) {
-      case "wall":
-        this.placeWall(worldPos);
+      case "stone":
+        this.placeBlock(worldPos, "stone");
+        break;
+      case "dirt":
+        this.placeBlock(worldPos, "dirt");
         break;
       case "shield":
         this.placePowerup(worldPos, (p) => new ShieldPowerup(p));
@@ -219,34 +252,62 @@ export class Panel {
     this.game.addEntity(new Spawner({ ...worldPos }, species, rate));
   }
 
-  /** Remove whatever the user clicked: a wall, else the nearest entity. */
+  private isDeletable(e: Entity): e is Entity & { radius: number } {
+    return (
+      e instanceof Creature ||
+      e instanceof Food ||
+      e instanceof Heart ||
+      e instanceof ShieldPowerup ||
+      e instanceof SpeedPowerup ||
+      e instanceof SwordPowerup
+    );
+  }
+
+  private kill(e: Entity) {
+    e.isAlive = false;
+    if (e instanceof Creature) e.deathTime = performance.now();
+  }
+
+  /**
+   * Delete tool. At brush size 1 it precisely removes a single thing under the
+   * cursor — a wall, else the closest entity. At larger sizes it acts as an
+   * eraser, clearing every wall and entity within the N×N square.
+   */
   private deleteAt(worldPos: Vec2) {
-    // A wall under the cursor takes priority.
-    if (this.game.walls.removeAt(worldPos)) return;
-    // Otherwise kill the closest entity the cursor is actually over — covers
-    // creatures and objects alike (the Delete tool serves both tabs).
-    let closest: (Entity & { radius: number }) | null = null;
-    let closestDist = Infinity;
-    for (const e of this.game.entities) {
-      if (!e.isAlive) continue;
-      const deletable =
-        e instanceof Creature ||
-        e instanceof Food ||
-        e instanceof Heart ||
-        e instanceof ShieldPowerup ||
-        e instanceof SpeedPowerup ||
-        e instanceof SwordPowerup;
-      if (!deletable) continue;
-      const ent = e as Entity & { radius: number };
-      const d = distance(worldPos, ent.position);
-      if (d < ent.radius + 5 && d < closestDist) {
-        closest = ent;
-        closestDist = d;
+    const reach = Math.floor(this.brushSize / 2);
+
+    if (reach === 0) {
+      // A wall under the cursor takes priority.
+      if (this.game.walls.removeAt(worldPos)) return;
+      // Otherwise kill the closest entity the cursor is actually over.
+      let closest: (Entity & { radius: number }) | null = null;
+      let closestDist = Infinity;
+      for (const e of this.game.entities) {
+        if (!e.isAlive || !this.isDeletable(e)) continue;
+        const d = distance(worldPos, e.position);
+        if (d < e.radius + 5 && d < closestDist) {
+          closest = e;
+          closestDist = d;
+        }
       }
+      if (closest) this.kill(closest);
+      return;
     }
-    if (closest) {
-      closest.isAlive = false;
-      if (closest instanceof Creature) closest.deathTime = performance.now();
+
+    // Area eraser: wipe every wall cell in the square and every entity whose
+    // body falls inside it.
+    for (const o of this.brushCells("square")) {
+      this.game.walls.removeAt({ x: worldPos.x + o.x, y: worldPos.y + o.y });
+    }
+    const ext = reach * WALL_SIZE + WALL_SIZE / 2;
+    for (const e of this.game.entities) {
+      if (!e.isAlive || !this.isDeletable(e)) continue;
+      if (
+        Math.abs(e.position.x - worldPos.x) <= ext + e.radius &&
+        Math.abs(e.position.y - worldPos.y) <= ext + e.radius
+      ) {
+        this.kill(e);
+      }
     }
   }
 
@@ -288,8 +349,9 @@ export class Panel {
     this.grabbed.steerTarget = null;
     // An immovable spawner re-pins to its anchor each frame, so move the anchor
     // too or the drag snaps right back.
-    if (this.grabbed instanceof CreativeSpawner)
+    if (this.grabbed instanceof CreativeSpawner) {
       this.grabbed.relocate(worldPos);
+    }
   }
 
   private populateSpeciesSelect() {
@@ -315,6 +377,34 @@ export class Panel {
   }
   private get objectSelect() {
     return document.getElementById("object-select") as HTMLSelectElement;
+  }
+  private get brushSizeInput() {
+    return document.getElementById("brush-size") as HTMLInputElement;
+  }
+  /** Side length (in cells) of the brush — an odd number, 1–9. */
+  private get brushSize(): number {
+    return Number(this.brushSizeInput.value) || 1;
+  }
+
+  /**
+   * World-space offsets (one per painted cell) for the current brush, on the
+   * WALL_SIZE grid and centred on (0,0). A `"square"` brush fills the whole N×N
+   * block (walls, power-ups, eraser); a `"diamond"` brush keeps only cells
+   * within Manhattan reach of the centre (creatures), giving the "+"-and-bigger
+   * spread — 1, 5, 13, 25, 41 cells for sizes 1, 3, 5, 7, 9.
+   */
+  private brushCells(shape: "square" | "diamond"): Vec2[] {
+    const reach = Math.floor(this.brushSize / 2);
+    const cells: Vec2[] = [];
+    for (let dx = -reach; dx <= reach; dx++) {
+      for (let dy = -reach; dy <= reach; dy++) {
+        if (shape === "diamond" && Math.abs(dx) + Math.abs(dy) > reach) {
+          continue;
+        }
+        cells.push({ x: dx * WALL_SIZE, y: dy * WALL_SIZE });
+      }
+    }
+    return cells;
   }
   private get spawnerSelect() {
     return document.getElementById("spawner-select") as HTMLSelectElement;
@@ -366,13 +456,17 @@ export class Panel {
       // Cursor feedback per tool: crosshair to delete, the "cell" cursor while
       // painting walls, copy for other placements, a move cursor for drag, and
       // a pointer for select.
-      const placingWall =
+      const placingBlock =
         this.mode === "place" &&
         this.activeTab === "objects" &&
-        this.objectSelect.value === "wall";
+        (this.objectSelect.value === "stone" ||
+          this.objectSelect.value === "dirt");
       canvas.classList.toggle("deleting", this.mode === "delete");
-      canvas.classList.toggle("building", placingWall);
-      canvas.classList.toggle("placing", this.mode === "place" && !placingWall);
+      canvas.classList.toggle("building", placingBlock);
+      canvas.classList.toggle(
+        "placing",
+        this.mode === "place" && !placingBlock,
+      );
       canvas.classList.toggle("moving", this.mode === "move");
       canvas.classList.toggle("selecting", this.mode === "select");
     };
@@ -458,6 +552,13 @@ export class Panel {
         this.objectSelect.value !== "spawner",
       );
     };
+    // Brush size applies to Place and Delete across both tabs; just mirror its
+    // value into the label.
+    const brushSizeVal = document.getElementById("brush-size-val")!;
+    this.brushSizeInput.addEventListener("input", () => {
+      const n = this.brushSize;
+      brushSizeVal.textContent = `${n}×${n}`;
+    });
     this.objectSelect.addEventListener("change", () => {
       refreshSpawnerConfig();
       refreshModeButtons();
@@ -838,7 +939,9 @@ export class Panel {
 
     const len = cs.program.length;
     if (cs.running) {
-      this.csStatusEl.textContent = `Running — step ${cs.stepIndex + 1} of ${len}`;
+      this.csStatusEl.textContent = `Running — step ${
+        cs.stepIndex + 1
+      } of ${len}`;
     } else if (len === 0) {
       this.csStatusEl.textContent = "Empty — add rounds and waits, then Start.";
     } else {

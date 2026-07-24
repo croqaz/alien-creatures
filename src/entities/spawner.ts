@@ -1,8 +1,8 @@
-import { Vec2, vec } from "../utils/vec2";
+import { vec, Vec2 } from "../utils/vec2";
 import { Creature } from "./creature";
 import type { World } from "./entity";
 import type { Behaviour } from "../behaviours/behaviour";
-import { type SpeciesDef, createWithVariant } from "./creatures/registry";
+import { createWithVariant, type SpeciesDef } from "./creatures/registry";
 
 /** The tower never moves and never acts on its own — its behaviour is a no-op. */
 const IDLE_BEHAVIOUR: Behaviour = {
@@ -59,6 +59,9 @@ export class Spawner extends Creature {
       canEatFood: false,
       canPickupPowerups: false,
     });
+    // Attackers grind the tower down with their alt (structure) damage, like a
+    // block — not melee. Faction loyalty still applies (its own brood won't).
+    this.structureTarget = true;
     this.spawnSpecies = species;
     this.spawnRate = spawnRate;
     this.anchor = { ...position };

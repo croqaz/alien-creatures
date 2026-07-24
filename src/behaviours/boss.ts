@@ -1,15 +1,20 @@
-import { Vec2, vec, sub, normalize, scale, add, distance } from "../utils/vec2";
+import { add, distance, normalize, scale, sub, vec, Vec2 } from "../utils/vec2";
 import type { Behaviour } from "./behaviour";
 import type { Creature } from "../entities/creature";
 import type { Entity, World } from "../entities/entity";
 import { Fireball } from "../entities/fireball";
+import { Shockwave } from "../entities/shockwave";
 import { createVoidSpiker, VOID_FACTION } from "../entities/creatures/registry";
 
 // Ranged attack tuning.
 const FIREBALL_DAMAGE = 95;
 const FIREBALL_SPEED = 340;
 const FIREBALL_RANGE = 780; // won't bother firing past this
-const FIREBALL_COOLDOWN = 0.8; // seconds of sim time between shots
+const FIREBALL_COOLDOWN = 0.8; // seconds of sim time between shots (stage 1)
+const FIREBALL_COOLDOWN_ENRAGED = 0.35; // faster fireballs in stage 2
+
+// Shockwave tuning (stage 2 only, like the Shard of Death).
+const SHOCKWAVE_COOLDOWN = 3.5; // seconds between knock-back shockwaves
 
 // Stage-2 summoning tuning (kicks in at half health).
 const SPAWN_MIN_INTERVAL = 0.5; // seconds
@@ -22,11 +27,17 @@ const MAX_MINIONS = 50; // alive void spikers the boss will sustain at once
  * a second stage, periodically summoning loyal Void Spikers that swarm everyone
  * but the boss and each other. It never flees, never grazes, and (being
  * infinite-energy) never tires.
+ *
+ * Stage 2 also kicks in faster fireballs (0.35s cooldown instead of 0.8s) and
+ * periodic knock-back shockwaves behind the boss that clear flankers — a direct
+ * parallel to how the Shard of Death fights, so the Voidspike uses fireballs
+ * for its forward arsenal and shockwaves to protect its rear.
  */
 export class BossBehaviour implements Behaviour {
   readonly name = "Boss";
   private wanderAngle = Math.random() * Math.PI * 2;
   private nextFireTime = 0;
+  private nextShockwaveTime = 0;
   private nextSpawnTime = 0;
 
   decide(creature: Creature, nearby: Entity[], world: World): Vec2 {
@@ -37,12 +48,23 @@ export class BossBehaviour implements Behaviour {
     if (enraged) this.maybeSummon(creature, world);
 
     if (target) {
+      const dir = normalize(sub(target.position, creature.position));
       const d = distance(creature.position, target.position);
 
       // Fire when off cooldown and the target is in range.
       if (world.time >= this.nextFireTime && d <= FIREBALL_RANGE) {
         this.shoot(creature, target, world);
-        this.nextFireTime = world.time + FIREBALL_COOLDOWN;
+        this.nextFireTime =
+          world.time +
+          (enraged ? FIREBALL_COOLDOWN_ENRAGED : FIREBALL_COOLDOWN);
+      }
+
+      // Stage 2 shockwave: slam a knock-back wave behind the boss on its own
+      // cadence, clearing anything trying to flank or pile on from the rear.
+      if (enraged && world.time >= this.nextShockwaveTime) {
+        const angle = Math.atan2(dir.y, dir.x);
+        world.spawn(new Shockwave(creature, angle + Math.PI, creature.faction));
+        this.nextShockwaveTime = world.time + SHOCKWAVE_COOLDOWN;
       }
 
       creature.lastActivity = enraged

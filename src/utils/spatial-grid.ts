@@ -54,8 +54,9 @@ export class SpatialGrid {
   }
 
   private index(cx: number, cy: number): number | undefined {
-    if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows)
+    if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows) {
       return undefined;
+    }
     return cy * this.cols + cx;
   }
 }

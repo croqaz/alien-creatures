@@ -1,5 +1,5 @@
-import { Vec2, vec, add, sub, scale } from "../utils/vec2";
-import { Entity, World, generateId } from "./entity";
+import { add, scale, sub, vec, Vec2 } from "../utils/vec2";
+import { Entity, generateId, World } from "./entity";
 import { Creature } from "./creature";
 import { damageCreature } from "./creatures/void-pool";
 

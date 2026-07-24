@@ -1,5 +1,5 @@
-import { Vec2, add, scale, distance, magnitude } from "../utils/vec2";
-import { Entity, World, generateId } from "./entity";
+import { add, distance, magnitude, scale, Vec2 } from "../utils/vec2";
+import { Entity, generateId, World } from "./entity";
 import { Creature } from "./creature";
 import { damageCreature } from "./creatures/void-pool";
 
@@ -68,8 +68,9 @@ export class Fireball implements Entity {
       if (e.id === this.ownerId) continue;
       if (this.faction !== "" && e.faction === this.faction) continue; // ally
       if (e.isShielded) continue; // shrugged off entirely
-      if (distance(this.position, e.position) > this.radius + e.radius)
+      if (distance(this.position, e.position) > this.radius + e.radius) {
         continue;
+      }
 
       const wasAlive = e.health > 0;
       damageCreature(e, this.damage, world); // shared-pool aware

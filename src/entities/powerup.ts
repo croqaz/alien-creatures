@@ -1,5 +1,5 @@
 import { Vec2 } from "../utils/vec2";
-import { Entity, World, generateId } from "./entity";
+import { Entity, generateId, World } from "./entity";
 
 /**
  * A shield power-up. The first of what may become a family of power-ups, so it

@@ -1,22 +1,23 @@
 import {
-  Vec2,
-  vec,
   add,
-  scale,
-  limit,
   distance,
-  sub,
-  normalize,
   lerp,
+  limit,
+  normalize,
+  scale,
+  sub,
+  vec,
+  Vec2,
 } from "../utils/vec2";
-import { Entity, World, generateId } from "./entity";
+import { Entity, generateId, World } from "./entity";
+import { WALL_SIZE } from "./wall";
 import { Food } from "./food";
 import { Heart } from "./heart";
 import { ShieldPowerup, SpeedPowerup, SwordPowerup } from "./powerup";
 import type { Behaviour } from "../behaviours/behaviour";
 import { Navigator } from "../behaviours/navigator";
 import { damageCreature } from "./creatures/void-pool";
-import { Arrow, ARROW_DAMAGE, ARROW_SPEED, ARCHER_COOLDOWN } from "./arrow";
+import { ARCHER_COOLDOWN, Arrow, ARROW_DAMAGE, ARROW_SPEED } from "./arrow";
 
 export type ShapeType =
   | "circle"
@@ -25,7 +26,8 @@ export type ShapeType =
   | "rounded-rect"
   | "spiked"
   | "pentagon"
-  | "crystal";
+  | "crystal"
+  | "trap";
 
 /**
  * One concentric destructible shell around a creature's body — the Shard of
@@ -42,6 +44,34 @@ export interface Crust {
 
 /** How long (ms) a provoked defender stays hostile after the last hit it takes. */
 const RETALIATION_MS = 2000;
+
+/**
+ * Squeeze-damage rate (HP/sec) applied when a creature is packed so tightly
+ * against other creatures that it can barely move. This prevents the map from
+ * locking up when too many creatures are crammed into a small arena — the
+ * excess are slowly culled, keeping the simulation fluid.
+ */
+const SQUEEZE_DAMAGE_RATE = 20;
+
+/**
+ * Minimum number of overlapping neighbours for squeeze damage to kick in.
+ * Fewer than this and the creature has enough breathing room to be fine.
+ */
+const SQUEEZE_NEIGHBOUR_MIN = 4;
+
+/**
+ * Velocity fraction of `maxSpeed` below which a creature is considered
+ * "squeezed" — it's being pressed in on all sides and can't make useful
+ * progress.
+ */
+const SQUEEZE_SPEED_THRESHOLD = 0.08;
+
+/**
+ * Seconds a creature must remain squeezed before squeeze damage starts. A
+ * short grace period so momentary crowding doesn't punish creatures that are
+ * just passing through each other.
+ */
+const SQUEEZE_GRACE_SECONDS = 0.8;
 
 /**
  * Fastest a creature may pivot its facing, in radians per second — a full turn
@@ -62,6 +92,33 @@ const HEAL_INTERVAL = 2;
  */
 export const ELITE_STAT_MULTIPLIER = 10;
 
+/**
+ * Default alt (structure) damage per second every creature deals to dirt blocks
+ * and Spawner towers it presses against — see `altDamage`. A flat, uniform
+ * value: dirt (100 HP) crumbles in ~5s. Stone is indestructible and unaffected.
+ * Independent of combat `damage`, so even peaceful, harmless creatures dig their
+ * way out when boxed in.
+ */
+export const ALT_DAMAGE_DEFAULT = 20;
+
+/**
+ * How far a trapped creature will look for a dirt block to dig its way out.
+ * Generous enough to find the wall of any reasonable enclosure, and the scan is
+ * throttled (see `nextEscapeScan`) so the cost stays negligible.
+ */
+const ESCAPE_RANGE = 600;
+/** Seconds between a trapped creature's re-scans for the nearest dirt block. */
+const ESCAPE_RESCAN = 0.4;
+/**
+ * A creature with no concrete goal is considered trapped when the open floor it
+ * can reach is smaller than this many cells — big enough that any real pen reads
+ * as a trap, small enough that an open-map roamer never does. Bounds the cost of
+ * the enclosure flood-fill (see `WallGrid.isEnclosed`).
+ */
+const TRAP_CELL_CAP = 256;
+/** Seconds between enclosure re-checks for a goalless creature. */
+const TRAP_CHECK_INTERVAL = 1;
+
 export interface CreatureConfig {
   species: string;
   color: string;
@@ -79,6 +136,12 @@ export interface CreatureConfig {
   retaliation?: number;
   perceptionRadius: number;
   behaviour: Behaviour;
+  /**
+   * Alt (structure) damage per second. Used to grind down blocks (stone/dirt)
+   * and Spawner towers — not living creatures, which take contact `damage`.
+   * Defaults to ALT_DAMAGE_DEFAULT when omitted.
+   */
+  altDamage?: number;
   /**
    * Allegiance group. Creatures sharing a non-empty faction are loyal to one
    * another — they never deal contact damage to allies and won't hunt them.
@@ -129,6 +192,14 @@ export class Creature implements Entity {
    */
   indestructible = false;
 
+  /**
+   * A Spawner tower: attackers grind it down with their alt (structure) damage
+   * rather than melee `attackDamage`, exactly as they dig blocks — so even a
+   * harmless, zero-damage creature can topple a tower. Faction loyalty still
+   * applies, so a tower's own brood won't turn on it. Set true by Spawner.
+   */
+  structureTarget = false;
+
   species: string;
   color: string;
   accentColor: string;
@@ -142,6 +213,8 @@ export class Creature implements Entity {
   maxEnergy: number;
   damage: number;
   retaliation: number;
+  /** Per-second damage this creature deals to blocks and spawner towers. */
+  altDamage: number;
   perceptionRadius: number;
   behaviour: Behaviour;
   faction: string;
@@ -192,6 +265,12 @@ export class Creature implements Entity {
   private nextHealTime = 0;
 
   /**
+   * How long (sim-seconds) this creature has been squeezed with no room to
+   * move. Once it exceeds SQUEEZE_GRACE_SECONDS, damage is applied every tick.
+   */
+  private squeezeTime = 0;
+
+  /**
    * Timestamp (performance.now) until which a retaliating creature stays
    * hostile. While provoked its `attackDamage` is its `retaliation` value.
    */
@@ -238,6 +317,7 @@ export class Creature implements Entity {
     this.maxEnergy = config.maxEnergy;
     this.damage = config.damage;
     this.retaliation = config.retaliation ?? 0;
+    this.altDamage = config.altDamage ?? ALT_DAMAGE_DEFAULT;
     this.perceptionRadius = config.perceptionRadius;
     this.behaviour = config.behaviour;
     this.faction = config.faction ?? "";
@@ -429,11 +509,45 @@ export class Creature implements Entity {
     //   1. retaliate — a provoked creature charges whoever just hit it;
     //   2. assist — a faction fighter rushes to help an ally under attack.
     // Both fall through to the creature's normal behaviour when neither applies.
-    const desired =
+    let desired =
       this.retaliationDrive(nearby, world) ??
       this.assistAllyDrive(nearby, world) ??
       this.behaviour.decide(this, nearby, world);
-    const steered = this.avoidWalls(desired, world);
+
+    // Decide whether we're trapped, then dig our way out. Two ways to be trapped:
+    //   (a) we picked a goal that's walled off with no route (food outside a
+    //       sealed pen) — the navigator flagged it unreachable; or
+    //   (b) we have no goal at all but we're boxed into a small enclosed pocket
+    //       (a goalless grazer in a pen) — found by a throttled flood-fill.
+    // Either way, head for the nearest breakable (dirt) block and tunnel out
+    // instead of grinding blindly into the barrier (which made them orbit and
+    // clump). Once a gap opens the creature reads as free again and carries on.
+    if (this.steerTarget !== null) {
+      // We chose a concrete goal this frame: trapped iff it's unreachable.
+      this.trapped = this.nav.unreachable;
+    } else if (world.time >= this.nextTrapCheck) {
+      // No goal — periodically test whether we're sealed into a small pocket.
+      this.trapped = world.walls.isEnclosed(
+        this.position,
+        this.radius,
+        world.arenaWidth,
+        world.arenaHeight,
+        TRAP_CELL_CAP,
+      );
+      this.nextTrapCheck = world.time + TRAP_CHECK_INTERVAL;
+    }
+    // (else: goalless and within the check interval — keep the last verdict.)
+
+    let ramBlock = false;
+    if (this.trapped) {
+      const escape = this.escapeWhenTrapped(world);
+      desired = escape.dir;
+      ramBlock = escape.ram;
+    }
+
+    // While ramming a chosen block to dig it out, skip wall avoidance — it would
+    // deflect the creature into sliding along the wall and it would never bite.
+    const steered = ramBlock ? desired : this.avoidWalls(desired, world);
     this.velocity = limit(
       lerp(this.velocity, steered, Math.min(1, dt * 8)),
       this.maxSpeed,
@@ -472,6 +586,16 @@ export class Creature implements Entity {
         const uy = ny / nlen;
         const vDotN = this.velocity.x * ux + this.velocity.y * uy;
         if (vDotN < 0) {
+          // We're actively driving into this block to get somewhere — the only
+          // time a creature digs. Grind through any dirt in the way (stone is
+          // indestructible and shrugs it off), so a creature boxed in by dirt
+          // can break out instead of grinding against it forever. Done here,
+          // while still overlapping, before the eject below moves us clear.
+          if (
+            world.walls.dig(this.position, this.radius, this.altDamage * dt)
+          ) {
+            this.lastActivity = "Digging out";
+          }
           this.velocity.x -= vDotN * ux;
           this.velocity.y -= vDotN * uy;
         }
@@ -553,27 +677,54 @@ export class Creature implements Entity {
         this.position = add(this.position, scale(pushDir, overlap));
         e.position = add(e.position, scale(pushDir, -overlap));
 
-        // Damage if aggressive/predator (or a provoked defender fighting back).
-        // A shielded target shrugs it off entirely — no damage, no retaliation
-        // trigger. Loyal allies (same faction) never hurt each other, so the
-        // boss and its spawned spikers can pile together harmlessly.
-        if (this.attackDamage > 0 && !e.isShielded && !this.alliedWith(e)) {
-          const wasAlive = e.health > 0;
-          damageCreature(e, this.attackDamage * dt, world); // shared-pool aware
-          // Whatever we just hit fights back if it's a retaliating species.
-          // Done from the attacker's side so it's immune to update order and
-          // the push-apart above (which can separate us before the victim runs
-          // its own collision check).
-          e.provoke();
-          // Landing the killing blow lets a carnivore feed on the prey,
-          // healing it 4x what a normal piece of food (25) would. Creatures
-          // that can't eat (the boss) gain nothing from a kill — they heal only
-          // from hearts, so they aren't effectively indestructible.
-          if (wasAlive && e.health <= 0 && this.canEatFood) {
-            this.health = Math.min(this.maxHealth, this.health + 100);
+        // A shielded target shrugs everything off, and loyal allies (same
+        // faction) never hurt each other — so the boss and its spawned spikers
+        // pile together harmlessly, and a tower's own brood won't topple it.
+        if (!e.isShielded && !this.alliedWith(e)) {
+          if (e.structureTarget) {
+            // A Spawner tower is ground down by our alt (structure) damage, the
+            // same stat that digs blocks — never melee. Even harmless, zero-
+            // damage creatures can topple a tower this way. It deals no contact
+            // damage and never retaliates, so there's nothing to provoke or feed on.
+            damageCreature(e, this.altDamage * dt, world);
+          } else if (this.attackDamage > 0) {
+            // Living prey takes our melee contact damage (aggressive/predator,
+            // or a provoked defender fighting back).
+            const wasAlive = e.health > 0;
+            damageCreature(e, this.attackDamage * dt, world); // shared-pool aware
+            // Whatever we just hit fights back if it's a retaliating species.
+            // Done from the attacker's side so it's immune to update order and
+            // the push-apart above (which can separate us before the victim runs
+            // its own collision check).
+            e.provoke();
+            // Landing the killing blow lets a carnivore feed on the prey,
+            // healing it 4x what a normal piece of food (25) would. Creatures
+            // that can't eat (the boss) gain nothing from a kill — they heal only
+            // from hearts, so they aren't effectively indestructible.
+            if (wasAlive && e.health <= 0 && this.canEatFood) {
+              this.health = Math.min(this.maxHealth, this.health + 100);
+            }
           }
         }
       }
+    }
+
+    // Squeeze damage: when the creature is packed so tightly against other
+    // creatures that it can barely move, it slowly takes damage. This prevents
+    // the map from locking up when too many creatures are crammed into a small
+    // arena — the excess are culled, keeping the simulation fluid.
+    const squeezeNeighbours = this.countOverlapping(nearby);
+    const speed = Math.hypot(this.velocity.x, this.velocity.y);
+    if (
+      squeezeNeighbours >= SQUEEZE_NEIGHBOUR_MIN &&
+      speed < this.maxSpeed * SQUEEZE_SPEED_THRESHOLD
+    ) {
+      this.squeezeTime += dt;
+      if (this.squeezeTime > SQUEEZE_GRACE_SECONDS) {
+        this.health -= SQUEEZE_DAMAGE_RATE * dt;
+      }
+    } else {
+      this.squeezeTime = Math.max(0, this.squeezeTime - dt * 2);
     }
 
     if (this.health <= 0) {
@@ -741,6 +892,73 @@ export class Creature implements Entity {
   // instead of jittering left/right at the same spot.
   private turnDir = 1;
 
+  /** Heading for the idle roam used when trapped with no dirt to dig. */
+  private wanderAngle = Math.random() * Math.PI * 2;
+
+  /** Dedicated navigator for the escape path, kept apart from the main `nav`
+   * so the (reachable) route to a dirt block and the (failing) search to the
+   * real goal don't thrash each other's cached path. */
+  private escapeNav = new Navigator();
+  /** Cached dirt block the creature is currently digging toward, if any. */
+  private escapeTarget: Vec2 | null = null;
+  /** Sim-time at which the trapped creature may re-scan for the nearest dirt. */
+  private nextEscapeScan = 0;
+  /** Cached verdict: is the creature currently boxed in? Re-evaluated periodically. */
+  private trapped = false;
+  /** Sim-time at which a goalless creature may re-run the enclosure check. */
+  private nextTrapCheck = 0;
+
+  /**
+   * Trapped-escape steering: head for the nearest breakable (dirt) block and
+   * dig out. Two phases:
+   *  - far from the block, route toward it on a dedicated navigator (so the
+   *    failing search to the real goal isn't thrashed);
+   *  - once adjacent, drive *straight into* the block at full speed so the
+   *    contact-dig in `update` actually bites — `ram: true` tells the caller to
+   *    skip wall avoidance, which would otherwise deflect it into a useless
+   *    slide along the wall (the bug that left trapped creatures inert).
+   * The dirt scan is throttled to ESCAPE_RESCAN so even a crowd of trapped
+   * creatures costs little. Falls back to a calm wander only when sealed in by
+   * pure indestructible stone — nothing to dig.
+   */
+  private escapeWhenTrapped(world: World): { dir: Vec2; ram: boolean } {
+    if (world.time >= this.nextEscapeScan || this.escapeTarget === null) {
+      const dirt = world.walls.nearestDirtBlock(this.position, ESCAPE_RANGE);
+      this.escapeTarget = dirt ? { ...dirt.position } : null;
+      this.nextEscapeScan = world.time + ESCAPE_RESCAN;
+    }
+
+    if (this.escapeTarget) {
+      const toBlock = sub(this.escapeTarget, this.position);
+      const dist = Math.hypot(toBlock.x, toBlock.y);
+      // Adjacent: shove straight into the block to grind through it.
+      if (dist < WALL_SIZE + this.radius + 6) {
+        this.steerTarget = { ...this.escapeTarget };
+        this.lastActivity = "Trapped — digging out";
+        if (dist < 1e-3) return { dir: vec(0, 0), ram: true };
+        return { dir: scale(toBlock, this.maxSpeed / dist), ram: true };
+      }
+      // Still approaching: route toward the block around any inner obstacles.
+      this.lastActivity = "Trapped — heading for soft ground";
+      return {
+        dir: this.escapeNav.seek(this, this.escapeTarget, world),
+        ram: false,
+      };
+    }
+
+    // Boxed in by indestructible stone — nothing to dig; mill about calmly.
+    this.steerTarget = null;
+    this.lastActivity = "Trapped — no way out";
+    this.wanderAngle += (Math.random() - 0.5) * 0.6;
+    return {
+      dir: vec(
+        Math.cos(this.wanderAngle) * this.maxSpeed * 0.5,
+        Math.sin(this.wanderAngle) * this.maxSpeed * 0.5,
+      ),
+      ram: false,
+    };
+  }
+
   /**
    * Simple wall-aware steering: probe ahead along the desired heading and, if a
    * wall blocks the way, rotate the heading until a clear path is found. This
@@ -789,5 +1007,22 @@ export class Creature implements Entity {
       }
     }
     return desired; // boxed in — let collision resolution sort it out
+  }
+
+  /**
+   * Count how many other living creatures overlap this one's body (within a
+   * small extra margin so creatures pressed edge-to-edge are still counted).
+   * Used by the squeeze-damage mechanic to decide whether the creature is
+   * too tightly packed to move.
+   */
+  private countOverlapping(nearby: Entity[]): number {
+    let count = 0;
+    for (const e of nearby) {
+      if (e === this || !e.isAlive || !(e instanceof Creature)) continue;
+      if (distance(this.position, e.position) < this.radius + e.radius + 4) {
+        count++;
+      }
+    }
+    return count;
   }
 }

@@ -1,13 +1,13 @@
-import { Vec2, vec } from "./vec2";
-import { WallGrid, WALL_SIZE } from "../entities/wall";
+import { vec, Vec2 } from "./vec2";
+import { WALL_SIZE, WallGrid } from "../entities/wall";
 
 const HALF = WALL_SIZE / 2;
 const SQRT2 = Math.SQRT2;
 
-// Safety cap on A* node expansions. The largest arena is 4000x3000 = 100x75
-// cells (~7500 nodes), so this comfortably covers a full search while still
-// bailing out cheaply if something pathological happens.
-const MAX_EXPANSIONS = 6000;
+// Safety cap on A* node expansions. The largest arena is 6400x4800 = 160x120
+// cells (~19200 nodes), so this comfortably covers a full search even on the
+// large map while still bailing out cheaply if something pathological happens.
+const MAX_EXPANSIONS = 20000;
 
 // How far (in cells) we'll look for a clear cell when the requested start or
 // goal sits inside a wall (e.g. food spawned flush against a barrier).
